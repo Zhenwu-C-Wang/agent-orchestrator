@@ -59,6 +59,26 @@ python -m orchestrator.acceptance --runner fake --audit-dir artifacts/runs
 
 Each record contains run metadata, traces, final structured output, and failure details when a run crashes.
 
+## Run Status Query
+
+List recent persisted runs:
+
+```bash
+python -m orchestrator.runs --audit-dir artifacts/runs list
+```
+
+Show one run in detail:
+
+```bash
+python -m orchestrator.runs --audit-dir artifacts/runs show <run_id>
+```
+
+Show the latest run:
+
+```bash
+python -m orchestrator.runs --audit-dir artifacts/runs latest
+```
+
 ## Model Retry
 
 The Ollama runner can retry model calls or JSON-parse failures without replaying the whole workflow:

@@ -19,6 +19,7 @@ Build a supervisor-driven workflow that takes one user question, delegates it to
 - One local-model adapter for Ollama
 - One deterministic fake runner for tests and demos
 - One optional JSON audit logger for run persistence
+- One read-only local run status query over audit artifacts
 - One model-layer retry policy for Ollama calls and JSON parsing
 - One optional request-level structured result cache
 - CLI entrypoint for local execution
@@ -81,6 +82,7 @@ These choices are intentionally fixed so implementation can start immediately.
 - `OllamaClient`
 - `OllamaModelRunner`
 - `AuditLogger`
+- `AuditStore`
 - `RetryPolicy`
 - `StructuredResultCache`
 - `ResearchWorker`
@@ -97,6 +99,7 @@ The MVP is done only when all of the following are true:
 - Each worker validates input and output against explicit schemas.
 - A local Ollama runner exists behind the same `ModelRunner` interface.
 - Audit logging can persist a run as one JSON artifact when requested.
+- Local runs can be listed and inspected through a read-only audit query CLI.
 - The Ollama runner can retry model invocation or JSON parsing failures without replaying the whole workflow.
 - Exact repeated requests can reuse cached structured results when cache is enabled.
 - Cache hit or miss is visible in task-level trace metadata and audit artifacts.
@@ -142,6 +145,7 @@ Deliverables:
 - `OllamaModelRunner`
 - prompt templates for both workers
 - optional JSON audit persistence
+- read-only audit query CLI
 - model-layer retry policy
 - request-level structured result cache
 
@@ -150,6 +154,7 @@ Acceptance:
 - The same workflow can be executed with `--runner ollama --model <model-name>`.
 - Local-model calls are isolated behind the `ModelRunner` contract.
 - Audit artifacts can be written without changing worker logic.
+- Run inspection reads persisted artifacts instead of requiring a live process registry.
 - Retry logic is isolated to model execution and parse recovery.
 - Cache reuse is isolated to exact request matches and does not affect workflow order.
 
@@ -180,10 +185,11 @@ These are the first engineering tasks to create as issues or work items.
 7. Implement `TaskRouter`, `TaskManager`, and `Supervisor`.
 8. Add `main.py` and JSON/pretty output modes.
 9. Add optional JSON audit logging.
-10. Add model-layer retries for Ollama execution and parse recovery.
-11. Add request-level structured result caching.
-12. Add tests for workflow, CLI, audit persistence, retry behavior, caching, and JSON extraction.
-13. Add architecture and usage documentation.
+10. Add read-only run status query over persisted audit artifacts.
+11. Add model-layer retries for Ollama execution and parse recovery.
+12. Add request-level structured result caching.
+13. Add tests for workflow, CLI, audit persistence, status query, retry behavior, caching, and JSON extraction.
+14. Add architecture and usage documentation.
 
 ## 7. File Layout For This Milestone
 
@@ -199,6 +205,7 @@ These are the first engineering tasks to create as issues or work items.
 │   ├── ollama_runner.py
 │   └── prompt_manager.py
 ├── orchestrator/
+│   ├── runs.py
 │   ├── router.py
 │   ├── supervisor.py
 │   └── task_manager.py
@@ -217,6 +224,7 @@ These are the first engineering tasks to create as issues or work items.
 │   ├── test_cache.py
 │   ├── test_cli.py
 │   ├── test_ollama_runner.py
+│   ├── test_run_query.py
 │   ├── test_review_workflow.py
 │   └── test_supervisor.py
 ├── workers/
@@ -253,7 +261,7 @@ Only after the MVP above is stable should the project add:
 
 - workflow-level retry policy
 - cache invalidation and eviction policy
-- status query APIs
+- richer status/query APIs beyond audit-backed local inspection
 - parallel branches
 - human-in-the-loop checkpoints
 

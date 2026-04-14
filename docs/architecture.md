@@ -13,6 +13,7 @@ This repository implements one narrow orchestration contract on purpose.
 - `PromptManager` owns prompt wording and prompt payload construction.
 - `ModelRunner` implementations own model invocation and structured parsing.
 - `AuditLogger` owns JSON persistence for completed or failed workflow runs.
+- `AuditStore` owns read-only inspection of persisted workflow runs.
 - `RetryPolicy` owns model-layer retry behavior and backoff configuration.
 - `StructuredResultCache` owns exact request-level structured result reuse.
 
@@ -32,6 +33,10 @@ The review stage adds useful signal, but it also adds latency and another struct
 ## Why Audit Logging Is Optional
 
 Audit persistence is useful for debugging local-model behavior and preserving traces from real runs, but it should not be forced on every invocation. Making it opt-in keeps the default workflow clean while preserving a stable path for investigation.
+
+## Why Status Query Reads Audit Artifacts
+
+The current status layer is intentionally read-only. It reads persisted audit JSON files instead of introducing a database, daemon, or mutable runtime registry. That keeps the implementation simple and aligned with the local-first workflow.
 
 ## Why Retries Are Limited To The Model Layer
 
