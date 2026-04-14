@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from models.model_runner import ModelRequest, StructuredModelRunner, StructuredModelT
 from models.ollama_client import OllamaClient
+from tools.errors import ModelInvocationError, ModelResponseFormatError
 from tools.retry import RetryPolicy
 
 JSON_FENCE_RE = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL)
@@ -76,7 +77,7 @@ class OllamaModelRunner(StructuredModelRunner):
                     "retry_count": attempt_number - 1,
                 }
                 return result
-            except (RuntimeError, json.JSONDecodeError, ValidationError) as exc:
+            except (ModelInvocationError, json.JSONDecodeError, ValidationError) as exc:
                 last_error = exc
                 self._last_invocation_metadata = {
                     "runner": "ollama",
@@ -90,8 +91,13 @@ class OllamaModelRunner(StructuredModelRunner):
                     break
                 self.retry_policy.sleep_before_retry(attempt_number)
 
-        raise RuntimeError(
-            f"Ollama structured generation failed after {self.retry_policy.max_attempts} attempts: "
+        if isinstance(last_error, ModelInvocationError):
+            raise ModelInvocationError(
+                f"Ollama invocation failed after {self.retry_policy.max_attempts} attempts: {last_error}"
+            ) from last_error
+
+        raise ModelResponseFormatError(
+            f"Ollama structured parsing failed after {self.retry_policy.max_attempts} attempts: "
             f"{last_error}"
         ) from last_error
 

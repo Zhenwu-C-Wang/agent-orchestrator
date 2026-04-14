@@ -41,6 +41,17 @@ By default the Ollama runner uses `--max-retries 1 --retry-backoff-seconds 0.25`
 - `--output pretty`: human-readable summary
 - `--output json`: full structured `WorkflowResult`
 
+## Exit Codes
+
+The CLIs use normalized non-zero exit codes for automation:
+
+- `3`: configuration error
+- `4`: model invocation error
+- `5`: model response format error
+- `6`: unclassified workflow execution error
+- `7`: audit query error
+- `8`: acceptance run finished with failed cases
+
 ## Audit Logs
 
 Write one JSON audit record for a single run:

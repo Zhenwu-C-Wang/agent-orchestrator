@@ -10,6 +10,7 @@ from orchestrator.supervisor import Supervisor
 from schemas.result_schema import WorkflowResult
 from tools.audit import AuditLogger
 from tools.cache import StructuredResultCache
+from tools.errors import ConfigurationError
 from tools.retry import RetryPolicy
 from workers.research_worker import ResearchWorker
 from workers.review_worker import ReviewWorker
@@ -27,6 +28,11 @@ def build_supervisor(
     max_retries: int = 1,
     retry_backoff_seconds: float = 0.25,
 ) -> Supervisor:
+    if max_retries < 0:
+        raise ConfigurationError("max_retries must be greater than or equal to 0.")
+    if retry_backoff_seconds < 0:
+        raise ConfigurationError("retry_backoff_seconds must be greater than or equal to 0.")
+
     model_name = None if runner_name == "fake" else model
     if runner_name == "fake":
         runner = FakeModelRunner()

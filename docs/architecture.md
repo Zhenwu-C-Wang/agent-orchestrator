@@ -16,6 +16,7 @@ This repository implements one narrow orchestration contract on purpose.
 - `AuditStore` owns read-only inspection of persisted workflow runs.
 - `RetryPolicy` owns model-layer retry behavior and backoff configuration.
 - `StructuredResultCache` owns exact request-level structured result reuse.
+- `AgentOrchestratorError` and CLI wrappers own error classification and exit-code normalization.
 
 ## Why The Workflow Is Fixed
 
@@ -37,6 +38,10 @@ Audit persistence is useful for debugging local-model behavior and preserving tr
 ## Why Status Query Reads Audit Artifacts
 
 The current status layer is intentionally read-only. It reads persisted audit JSON files instead of introducing a database, daemon, or mutable runtime registry. That keeps the implementation simple and aligned with the local-first workflow.
+
+## Why Exit Codes Are Normalized
+
+This project is increasingly scriptable. Once audit, cache, retries, and acceptance flows exist, shell automation needs something more precise than a generic non-zero exit. Typed exit codes let callers distinguish configuration mistakes from model failures and validation failures without parsing human-readable output.
 
 ## Why Retries Are Limited To The Model Layer
 

@@ -22,6 +22,7 @@ Build a supervisor-driven workflow that takes one user question, delegates it to
 - One read-only local run status query over audit artifacts
 - One model-layer retry policy for Ollama calls and JSON parsing
 - One optional request-level structured result cache
+- One normalized CLI error taxonomy with stable exit codes
 - CLI entrypoint for local execution
 
 ### Out Of Scope For This Milestone
@@ -85,6 +86,7 @@ These choices are intentionally fixed so implementation can start immediately.
 - `AuditStore`
 - `RetryPolicy`
 - `StructuredResultCache`
+- `AgentOrchestratorError`
 - `ResearchWorker`
 - `WriterWorker`
 - `ReviewWorker` behind a feature flag
@@ -103,6 +105,7 @@ The MVP is done only when all of the following are true:
 - The Ollama runner can retry model invocation or JSON parsing failures without replaying the whole workflow.
 - Exact repeated requests can reuse cached structured results when cache is enabled.
 - Cache hit or miss is visible in task-level trace metadata and audit artifacts.
+- CLI failures are classified into stable exit codes for automation.
 - Automated tests cover the fixed workflow and CLI JSON output.
 
 ## 5. Executable Work Breakdown
@@ -148,6 +151,7 @@ Deliverables:
 - read-only audit query CLI
 - model-layer retry policy
 - request-level structured result cache
+- normalized CLI exit codes
 
 Acceptance:
 
@@ -157,6 +161,7 @@ Acceptance:
 - Run inspection reads persisted artifacts instead of requiring a live process registry.
 - Retry logic is isolated to model execution and parse recovery.
 - Cache reuse is isolated to exact request matches and does not affect workflow order.
+- CLI automation can rely on stable exit codes instead of parsing free-form error text.
 
 ### M3: Verification Baseline
 
@@ -188,8 +193,9 @@ These are the first engineering tasks to create as issues or work items.
 10. Add read-only run status query over persisted audit artifacts.
 11. Add model-layer retries for Ollama execution and parse recovery.
 12. Add request-level structured result caching.
-13. Add tests for workflow, CLI, audit persistence, status query, retry behavior, caching, and JSON extraction.
-14. Add architecture and usage documentation.
+13. Add normalized CLI failure classification and exit codes.
+14. Add tests for workflow, CLI, audit persistence, status query, retry behavior, caching, exit codes, and JSON extraction.
+15. Add architecture and usage documentation.
 
 ## 7. File Layout For This Milestone
 
@@ -218,11 +224,13 @@ These are the first engineering tasks to create as issues or work items.
 ├── tools/
 │   ├── audit.py
 │   ├── cache.py
+│   ├── errors.py
 │   └── retry.py
 ├── tests/
 │   ├── test_audit_logging.py
 │   ├── test_cache.py
 │   ├── test_cli.py
+│   ├── test_exit_codes.py
 │   ├── test_ollama_runner.py
 │   ├── test_run_query.py
 │   ├── test_review_workflow.py

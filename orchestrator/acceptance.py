@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from orchestrator.bootstrap import build_supervisor
 from schemas.result_schema import WorkflowResult
+from tools.errors import AcceptanceFailedError, run_cli
 
 ACCEPTANCE_QUESTIONS = [
     "How should I bootstrap a supervisor-worker agent system?",
@@ -211,7 +212,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
+def _main() -> None:
     args = parse_args()
     report = run_acceptance(
         runner_name=args.runner,
@@ -227,7 +228,11 @@ def main() -> None:
         print(report.model_dump_json(indent=2))
     else:
         print(format_report(report))
+    if report.failed_cases > 0:
+        raise AcceptanceFailedError(
+            f"{report.failed_cases} of {report.total_cases} acceptance cases failed."
+        )
 
 
 if __name__ == "__main__":
-    main()
+    run_cli(_main)

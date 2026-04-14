@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from orchestrator.bootstrap import build_supervisor, format_pretty
+from tools.errors import run_cli
 
 
 def parse_args() -> argparse.Namespace:
@@ -60,7 +61,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
+def _main() -> None:
     args = parse_args()
     supervisor = build_supervisor(
         runner_name=args.runner,
@@ -80,4 +81,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_cli(_main)

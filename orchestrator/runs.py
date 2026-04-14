@@ -5,6 +5,7 @@ import json
 
 from schemas.audit_schema import AuditRecord
 from tools.audit import AuditStore
+from tools.errors import AuditQueryError, run_cli
 
 
 def parse_args() -> argparse.Namespace:
@@ -95,7 +96,7 @@ def format_detail(store: AuditStore, record: AuditRecord) -> str:
     return "\n".join(lines)
 
 
-def main() -> None:
+def _main() -> None:
     args = parse_args()
     store = AuditStore(args.audit_dir)
 
@@ -111,7 +112,7 @@ def main() -> None:
     if args.command == "show":
         record = store.get_record(args.run_id)
         if record is None:
-            raise SystemExit(f"Run not found: {args.run_id}")
+            raise AuditQueryError(f"Run not found: {args.run_id}")
         if args.output == "json":
             print(record.model_dump_json(indent=2))
         else:
@@ -122,7 +123,7 @@ def main() -> None:
         status = _normalize_status_filter(args.status)
         record = store.latest_record(status=status)
         if record is None:
-            raise SystemExit("No audit records found.")
+            raise AuditQueryError("No audit records found.")
         if args.output == "json":
             print(record.model_dump_json(indent=2))
         else:
@@ -131,4 +132,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_cli(_main)

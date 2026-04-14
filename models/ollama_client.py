@@ -4,6 +4,8 @@ import json
 from typing import Any
 from urllib import error, request
 
+from tools.errors import ModelInvocationError
+
 
 class OllamaClient:
     """Thin HTTP client for Ollama's generate endpoint."""
@@ -41,9 +43,11 @@ class OllamaClient:
             with request.urlopen(req, timeout=self.timeout) as response:
                 body = json.loads(response.read().decode("utf-8"))
         except error.URLError as exc:
-            raise RuntimeError(f"Failed to reach Ollama at {self.base_url}: {exc}") from exc
+            raise ModelInvocationError(f"Failed to reach Ollama at {self.base_url}: {exc}") from exc
 
         try:
             return body["response"]
         except KeyError as exc:
-            raise RuntimeError(f"Ollama response did not include a 'response' field: {body}") from exc
+            raise ModelInvocationError(
+                f"Ollama response did not include a 'response' field: {body}"
+            ) from exc

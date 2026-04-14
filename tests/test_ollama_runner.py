@@ -3,6 +3,7 @@ import pytest
 from models.model_runner import ModelRequest
 from models.ollama_runner import OllamaModelRunner, extract_json_payload
 from schemas.result_schema import ResearchResult
+from tools.errors import ModelInvocationError, ModelResponseFormatError
 from tools.retry import RetryPolicy
 
 
@@ -50,7 +51,7 @@ def _research_json(summary: str = "s") -> str:
 
 
 def test_ollama_runner_retries_after_client_error() -> None:
-    client = StubOllamaClient([RuntimeError("temporary failure"), _research_json("ok")])
+    client = StubOllamaClient([ModelInvocationError("temporary failure"), _research_json("ok")])
     runner = OllamaModelRunner(
         model="test-model",
         client=client,
@@ -78,14 +79,30 @@ def test_ollama_runner_retries_after_invalid_json() -> None:
 
 
 def test_ollama_runner_raises_after_retry_exhaustion() -> None:
-    client = StubOllamaClient([RuntimeError("still failing"), RuntimeError("still failing again")])
+    client = StubOllamaClient(
+        [ModelInvocationError("still failing"), ModelInvocationError("still failing again")]
+    )
     runner = OllamaModelRunner(
         model="test-model",
         client=client,
         retry_policy=RetryPolicy(max_retries=1, backoff_seconds=0),
     )
 
-    with pytest.raises(RuntimeError, match="after 2 attempts"):
+    with pytest.raises(ModelInvocationError, match="after 2 attempts"):
+        runner.generate_structured(_request(), ResearchResult)
+
+    assert client.calls == 2
+
+
+def test_ollama_runner_raises_parse_error_after_retry_exhaustion() -> None:
+    client = StubOllamaClient(["not json", "still not json"])
+    runner = OllamaModelRunner(
+        model="test-model",
+        client=client,
+        retry_policy=RetryPolicy(max_retries=1, backoff_seconds=0),
+    )
+
+    with pytest.raises(ModelResponseFormatError, match="parsing failed after 2 attempts"):
         runner.generate_structured(_request(), ResearchResult)
 
     assert client.calls == 2
