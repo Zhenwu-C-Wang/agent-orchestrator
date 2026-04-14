@@ -3,6 +3,7 @@ A supervisor-driven multi-agent system where a central orchestrator decomposes t
 
 ## Status
 This repository now contains an executable MVP skeleton for a fixed `ResearchWorker -> WriterWorker` workflow. The default runner is deterministic for tests and demos, and the same flow can be switched to Ollama for local model execution.
+An optional `ReviewWorker` can be enabled to check whether the final answer remains consistent with the research result.
 
 ## Quickstart
 
@@ -12,6 +13,14 @@ source .venv/bin/activate
 pip install -e '.[dev]'
 pytest
 python main.py "How should I bootstrap a supervisor-worker system?" --runner fake
+```
+
+Enable the optional review stage:
+
+```bash
+python main.py "How should I bootstrap a supervisor-worker system?" \
+  --runner fake \
+  --with-review
 ```
 
 ## Run With Ollama
@@ -46,6 +55,7 @@ python -m orchestrator.acceptance --runner ollama --model qwen2.5:14b
 ```
 
 Use `--output json` if you want the full structured report.
+Add `--with-review` to validate the optional three-stage workflow.
 
 ## Project Layout
 

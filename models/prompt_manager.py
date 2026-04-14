@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from models.model_runner import ModelRequest
-from schemas.result_schema import ResearchResult
+from schemas.result_schema import FinalAnswer, ResearchResult
 
 
 class PromptManager:
@@ -38,4 +38,32 @@ class PromptManager:
                 f"Research JSON: {json.dumps(research.model_dump(), ensure_ascii=True)}"
             ),
             payload={"question": question, "research": research.model_dump()},
+        )
+
+    def build_review_request(
+        self,
+        question: str,
+        research: ResearchResult,
+        final_answer: FinalAnswer,
+    ) -> ModelRequest:
+        return ModelRequest(
+            task_type="review",
+            system_prompt=(
+                "You are a review worker in a supervisor-driven system. "
+                "Check whether the final answer stays supported by the research result. "
+                "Return only valid JSON that matches the required schema."
+            ),
+            user_prompt=(
+                "Review whether the final answer is consistent with the research result.\n"
+                "Be strict about support and contradictions, but do not critique writing style.\n"
+                "Return JSON with keys: question, consistent, verdict, issues, checked_points.\n"
+                f"Question: {question}\n"
+                f"Research JSON: {json.dumps(research.model_dump(), ensure_ascii=True)}\n"
+                f"FinalAnswer JSON: {json.dumps(final_answer.model_dump(), ensure_ascii=True)}"
+            ),
+            payload={
+                "question": question,
+                "research": research.model_dump(),
+                "final_answer": final_answer.model_dump(),
+            },
         )

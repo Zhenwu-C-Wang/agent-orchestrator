@@ -30,6 +30,11 @@ def parse_args() -> argparse.Namespace:
         default="pretty",
         help="Output mode.",
     )
+    parser.add_argument(
+        "--with-review",
+        action="store_true",
+        help="Enable the optional ReviewWorker stage.",
+    )
     return parser.parse_args()
 
 
@@ -39,6 +44,7 @@ def main() -> None:
         runner_name=args.runner,
         model=args.model,
         base_url=args.base_url,
+        enable_review=args.with_review,
     )
     result = supervisor.run(args.question)
     if args.output == "json":

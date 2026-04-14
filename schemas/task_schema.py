@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 class TaskType(str, Enum):
     RESEARCH = "research"
     WRITING = "writing"
+    REVIEW = "review"
 
 
 class TaskEnvelope(BaseModel):

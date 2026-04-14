@@ -30,6 +30,7 @@ class AcceptanceCaseResult(BaseModel):
 class AcceptanceReport(BaseModel):
     runner: str
     model: str | None = None
+    enable_review: bool = False
     total_cases: int
     passed_cases: int
     failed_cases: int
@@ -40,7 +41,7 @@ def _has_content(value: str) -> bool:
     return bool(value and value.strip())
 
 
-def evaluate_result(result: WorkflowResult) -> tuple[list[str], list[str]]:
+def evaluate_result(result: WorkflowResult, *, expect_review: bool) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
 
@@ -54,10 +55,20 @@ def evaluate_result(result: WorkflowResult) -> tuple[list[str], list[str]]:
         errors.append("Final answer supporting_points are empty.")
 
     trace_order = [trace.worker_name for trace in result.traces]
-    if trace_order != ["research", "writer"]:
+    expected_order = ["research", "writer", "review"] if expect_review else ["research", "writer"]
+    if trace_order != expected_order:
         errors.append(f"Unexpected trace order: {trace_order}")
     if any(trace.status != "completed" for trace in result.traces):
         errors.append("One or more workflow steps did not complete successfully.")
+    if expect_review and result.review is None:
+        errors.append("Review stage was enabled but no review result was returned.")
+    if not expect_review and result.review is not None:
+        warnings.append("Review result was returned even though review stage was not requested.")
+    if result.review is not None:
+        if not _has_content(result.review.verdict):
+            errors.append("Review verdict is empty.")
+        if not result.review.consistent and not result.review.issues:
+            warnings.append("Review marked the answer inconsistent but did not provide issues.")
 
     overlapping_points = set(result.research.key_points) & set(result.final_answer.supporting_points)
     if not overlapping_points:
@@ -71,11 +82,13 @@ def run_acceptance(
     runner_name: str,
     model: str,
     base_url: str,
+    enable_review: bool = False,
 ) -> AcceptanceReport:
     supervisor = build_supervisor(
         runner_name=runner_name,
         model=model,
         base_url=base_url,
+        enable_review=enable_review,
     )
 
     case_results: list[AcceptanceCaseResult] = []
@@ -88,7 +101,7 @@ def run_acceptance(
 
         try:
             result = supervisor.run(question)
-            errors, warnings = evaluate_result(result)
+            errors, warnings = evaluate_result(result, expect_review=enable_review)
         except Exception as exc:
             errors = [str(exc)]
 
@@ -109,6 +122,7 @@ def run_acceptance(
     return AcceptanceReport(
         runner=runner_name,
         model=None if runner_name == "fake" else model,
+        enable_review=enable_review,
         total_cases=len(case_results),
         passed_cases=passed_cases,
         failed_cases=len(case_results) - passed_cases,
@@ -120,6 +134,7 @@ def format_report(report: AcceptanceReport) -> str:
     lines = [
         f"Runner: {report.runner}",
         f"Model: {report.model or 'n/a'}",
+        f"Review: {'enabled' if report.enable_review else 'disabled'}",
         f"Passed: {report.passed_cases}/{report.total_cases}",
         "",
     ]
@@ -158,6 +173,11 @@ def parse_args() -> argparse.Namespace:
         default="pretty",
         help="Output mode.",
     )
+    parser.add_argument(
+        "--with-review",
+        action="store_true",
+        help="Enable the optional ReviewWorker stage.",
+    )
     return parser.parse_args()
 
 
@@ -167,6 +187,7 @@ def main() -> None:
         runner_name=args.runner,
         model=args.model,
         base_url=args.base_url,
+        enable_review=args.with_review,
     )
     if args.output == "json":
         print(report.model_dump_json(indent=2))

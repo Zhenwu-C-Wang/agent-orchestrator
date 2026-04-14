@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from models.model_runner import ModelRequest, StructuredModelRunner, StructuredModelT
-from schemas.result_schema import FinalAnswer, ResearchResult
+from schemas.result_schema import FinalAnswer, ResearchResult, ReviewResult
 
 
 class FakeModelRunner(StructuredModelRunner):
@@ -47,6 +47,18 @@ class FakeModelRunner(StructuredModelRunner):
                 ),
                 "supporting_points": supporting_points,
                 "limitations": limitations,
+            }
+            return response_model.model_validate(payload)
+
+        if response_model is ReviewResult:
+            research = request.payload["research"]
+            final_answer = request.payload["final_answer"]
+            payload = {
+                "question": question,
+                "consistent": True,
+                "verdict": "The final answer remains aligned with the research output.",
+                "issues": [],
+                "checked_points": list(research["key_points"]) + list(final_answer["supporting_points"]),
             }
             return response_model.model_validate(payload)
 

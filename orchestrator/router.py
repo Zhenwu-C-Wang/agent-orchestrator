@@ -6,8 +6,11 @@ from schemas.task_schema import TaskType, WorkflowStep
 class TaskRouter:
     """Defines the fixed workflow and task inputs for the MVP."""
 
+    def __init__(self, *, enable_review: bool = False) -> None:
+        self.enable_review = enable_review
+
     def plan(self, question: str) -> list[WorkflowStep]:
-        return [
+        steps = [
             WorkflowStep(
                 task_type=TaskType.RESEARCH,
                 worker_name="research",
@@ -19,6 +22,15 @@ class TaskRouter:
                 output_schema="FinalAnswer",
             ),
         ]
+        if self.enable_review:
+            steps.append(
+                WorkflowStep(
+                    task_type=TaskType.REVIEW,
+                    worker_name="review",
+                    output_schema="ReviewResult",
+                )
+            )
+        return steps
 
     def build_task_input(self, step: WorkflowStep, question: str, context: dict) -> dict:
         if step.task_type is TaskType.RESEARCH:
@@ -27,5 +39,11 @@ class TaskRouter:
             return {
                 "question": question,
                 "research": context["research"].model_dump(),
+            }
+        if step.task_type is TaskType.REVIEW:
+            return {
+                "question": question,
+                "research": context["research"].model_dump(),
+                "final_answer": context["final_answer"].model_dump(),
             }
         raise ValueError(f"Unsupported task type: {step.task_type}")

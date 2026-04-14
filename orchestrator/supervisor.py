@@ -4,7 +4,7 @@ from time import perf_counter
 
 from orchestrator.router import TaskRouter
 from orchestrator.task_manager import TaskManager
-from schemas.result_schema import FinalAnswer, ResearchResult, WorkflowResult
+from schemas.result_schema import FinalAnswer, ResearchResult, ReviewResult, WorkflowResult
 from schemas.task_schema import TaskTrace, TaskType
 
 
@@ -26,6 +26,7 @@ class Supervisor:
         traces: list[TaskTrace] = []
         research_result: ResearchResult | None = None
         final_answer: FinalAnswer | None = None
+        review_result: ReviewResult | None = None
 
         for step in self.router.plan(question):
             task_input = self.router.build_task_input(step, question, context)
@@ -67,6 +68,9 @@ class Supervisor:
             elif step.task_type is TaskType.WRITING:
                 final_answer = result
                 context["final_answer"] = result
+            elif step.task_type is TaskType.REVIEW:
+                review_result = result
+                context["review"] = result
 
         if research_result is None or final_answer is None:
             raise RuntimeError("Workflow did not produce both research and final answer outputs.")
@@ -75,5 +79,6 @@ class Supervisor:
             question=question,
             research=research_result,
             final_answer=final_answer,
+            review=review_result,
             traces=traces,
         )

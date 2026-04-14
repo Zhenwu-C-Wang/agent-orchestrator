@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from schemas.result_schema import ResearchResult
+from schemas.result_schema import FinalAnswer, ResearchResult
 
 
 class ResearchTaskInput(BaseModel):
@@ -12,3 +12,9 @@ class ResearchTaskInput(BaseModel):
 class WriterTaskInput(BaseModel):
     question: str
     research: ResearchResult
+
+
+class ReviewTaskInput(BaseModel):
+    question: str
+    research: ResearchResult
+    final_answer: FinalAnswer

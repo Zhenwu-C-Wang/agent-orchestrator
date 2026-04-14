@@ -4,9 +4,11 @@ from models.fake_runner import FakeModelRunner
 from models.ollama_client import OllamaClient
 from models.ollama_runner import OllamaModelRunner
 from models.prompt_manager import PromptManager
+from orchestrator.router import TaskRouter
 from orchestrator.supervisor import Supervisor
 from schemas.result_schema import WorkflowResult
 from workers.research_worker import ResearchWorker
+from workers.review_worker import ReviewWorker
 from workers.writer_worker import WriterWorker
 
 
@@ -15,6 +17,7 @@ def build_supervisor(
     runner_name: str,
     model: str = "llama3.1",
     base_url: str = "http://localhost:11434",
+    enable_review: bool = False,
 ) -> Supervisor:
     if runner_name == "fake":
         runner = FakeModelRunner()
@@ -30,8 +33,12 @@ def build_supervisor(
     workers = {
         "research": ResearchWorker(runner=runner, prompt_manager=prompt_manager),
         "writer": WriterWorker(runner=runner, prompt_manager=prompt_manager),
+        "review": ReviewWorker(runner=runner, prompt_manager=prompt_manager),
     }
-    return Supervisor(workers=workers)
+    return Supervisor(
+        workers=workers,
+        router=TaskRouter(enable_review=enable_review),
+    )
 
 
 def format_pretty(result: WorkflowResult) -> str:
@@ -43,6 +50,9 @@ def format_pretty(result: WorkflowResult) -> str:
         "",
         "Final Answer:",
         result.final_answer.answer,
+        "",
+        "Review Verdict:",
+        result.review.verdict if result.review else "Review stage disabled.",
         "",
         "Supporting Points:",
         *[f"- {point}" for point in result.final_answer.supporting_points],

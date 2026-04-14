@@ -12,6 +12,7 @@ Build a supervisor-driven workflow that takes one user question, delegates it to
 
 - Python implementation
 - One fixed workflow: `ResearchWorker -> WriterWorker`
+- One optional validation stage: `ReviewWorker`
 - One `Supervisor`
 - One `TaskRouter`
 - One structured `ModelRunner` interface
@@ -77,6 +78,7 @@ These choices are intentionally fixed so implementation can start immediately.
 - `OllamaModelRunner`
 - `ResearchWorker`
 - `WriterWorker`
+- `ReviewWorker` behind a feature flag
 
 ## 4. Definition Of Done
 
@@ -113,6 +115,7 @@ Deliverables:
 - `TaskManager`
 - `ResearchWorker`
 - `WriterWorker`
+- `ReviewWorker`
 - schemas for task input, worker output, and traces
 
 Acceptance:
@@ -156,7 +159,7 @@ These are the first engineering tasks to create as issues or work items.
 3. Implement the `ModelRunner` protocol and fake runner.
 4. Implement the Ollama client and runner.
 5. Implement the prompt manager.
-6. Implement `ResearchWorker` and `WriterWorker`.
+6. Implement `ResearchWorker`, `WriterWorker`, and the optional `ReviewWorker`.
 7. Implement `TaskRouter`, `TaskManager`, and `Supervisor`.
 8. Add `main.py` and JSON/pretty output modes.
 9. Add tests for workflow, CLI, and JSON extraction.
@@ -185,10 +188,12 @@ These are the first engineering tasks to create as issues or work items.
 ├── tests/
 │   ├── test_cli.py
 │   ├── test_ollama_runner.py
+│   ├── test_review_workflow.py
 │   └── test_supervisor.py
 ├── workers/
 │   ├── base.py
 │   ├── research_worker.py
+│   ├── review_worker.py
 │   └── writer_worker.py
 ├── main.py
 ├── pyproject.toml
@@ -217,7 +222,6 @@ The pass condition is not “the wording looks nice.” The pass condition is:
 
 Only after the MVP above is stable should the project add:
 
-- `ReviewWorker`
 - retry policy
 - audit log persistence
 - caching

@@ -20,8 +20,17 @@ class FinalAnswer(BaseModel):
     limitations: list[str] = Field(default_factory=list)
 
 
+class ReviewResult(BaseModel):
+    question: str
+    consistent: bool
+    verdict: str
+    issues: list[str] = Field(default_factory=list)
+    checked_points: list[str] = Field(default_factory=list)
+
+
 class WorkflowResult(BaseModel):
     question: str
     research: ResearchResult
     final_answer: FinalAnswer
+    review: ReviewResult | None = None
     traces: list[TaskTrace] = Field(default_factory=list)
