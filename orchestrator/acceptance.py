@@ -84,6 +84,7 @@ def run_acceptance(
     base_url: str,
     enable_review: bool = False,
     audit_dir: str | None = None,
+    cache_dir: str | None = None,
     max_retries: int = 1,
     retry_backoff_seconds: float = 0.25,
 ) -> AcceptanceReport:
@@ -93,6 +94,7 @@ def run_acceptance(
         base_url=base_url,
         enable_review=enable_review,
         audit_dir=audit_dir,
+        cache_dir=cache_dir,
         max_retries=max_retries,
         retry_backoff_seconds=retry_backoff_seconds,
     )
@@ -190,6 +192,11 @@ def parse_args() -> argparse.Namespace:
         help="Optional directory where one JSON audit record will be written per question.",
     )
     parser.add_argument(
+        "--cache-dir",
+        default=None,
+        help="Optional directory for request-level structured result caching.",
+    )
+    parser.add_argument(
         "--max-retries",
         type=int,
         default=1,
@@ -212,6 +219,7 @@ def main() -> None:
         base_url=args.base_url,
         enable_review=args.with_review,
         audit_dir=args.audit_dir,
+        cache_dir=args.cache_dir,
         max_retries=args.max_retries,
         retry_backoff_seconds=args.retry_backoff_seconds,
     )

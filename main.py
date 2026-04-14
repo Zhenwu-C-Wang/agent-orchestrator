@@ -41,6 +41,11 @@ def parse_args() -> argparse.Namespace:
         help="Optional directory where one JSON audit record will be written per run.",
     )
     parser.add_argument(
+        "--cache-dir",
+        default=None,
+        help="Optional directory for request-level structured result caching.",
+    )
+    parser.add_argument(
         "--max-retries",
         type=int,
         default=1,
@@ -63,6 +68,7 @@ def main() -> None:
         base_url=args.base_url,
         enable_review=args.with_review,
         audit_dir=args.audit_dir,
+        cache_dir=args.cache_dir,
         max_retries=args.max_retries,
         retry_backoff_seconds=args.retry_backoff_seconds,
     )

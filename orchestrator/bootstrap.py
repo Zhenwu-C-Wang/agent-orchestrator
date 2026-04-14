@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from models.cached_runner import CachedModelRunner
 from models.fake_runner import FakeModelRunner
 from models.ollama_client import OllamaClient
 from models.ollama_runner import OllamaModelRunner
@@ -8,6 +9,7 @@ from orchestrator.router import TaskRouter
 from orchestrator.supervisor import Supervisor
 from schemas.result_schema import WorkflowResult
 from tools.audit import AuditLogger
+from tools.cache import StructuredResultCache
 from tools.retry import RetryPolicy
 from workers.research_worker import ResearchWorker
 from workers.review_worker import ReviewWorker
@@ -21,9 +23,11 @@ def build_supervisor(
     base_url: str = "http://localhost:11434",
     enable_review: bool = False,
     audit_dir: str | None = None,
+    cache_dir: str | None = None,
     max_retries: int = 1,
     retry_backoff_seconds: float = 0.25,
 ) -> Supervisor:
+    model_name = None if runner_name == "fake" else model
     if runner_name == "fake":
         runner = FakeModelRunner()
     elif runner_name == "ollama":
@@ -38,6 +42,16 @@ def build_supervisor(
     else:
         raise ValueError(f"Unsupported runner: {runner_name}")
 
+    if cache_dir:
+        runner = CachedModelRunner(
+            runner=runner,
+            cache=StructuredResultCache(cache_dir),
+            namespace={
+                "runner": runner_name,
+                "model": model_name,
+            },
+        )
+
     prompt_manager = PromptManager()
     workers = {
         "research": ResearchWorker(runner=runner, prompt_manager=prompt_manager),
@@ -50,8 +64,10 @@ def build_supervisor(
             audit_dir,
             metadata={
                 "runner": runner_name,
-                "model": None if runner_name == "fake" else model,
+                "model": model_name,
                 "review_enabled": enable_review,
+                "cache_enabled": bool(cache_dir),
+                "cache_dir": cache_dir,
                 "max_retries": max_retries,
                 "retry_backoff_seconds": retry_backoff_seconds,
             },

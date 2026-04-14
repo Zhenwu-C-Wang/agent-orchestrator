@@ -14,6 +14,7 @@ This repository implements one narrow orchestration contract on purpose.
 - `ModelRunner` implementations own model invocation and structured parsing.
 - `AuditLogger` owns JSON persistence for completed or failed workflow runs.
 - `RetryPolicy` owns model-layer retry behavior and backoff configuration.
+- `StructuredResultCache` owns exact request-level structured result reuse.
 
 ## Why The Workflow Is Fixed
 
@@ -36,14 +37,18 @@ Audit persistence is useful for debugging local-model behavior and preserving tr
 
 Retrying the whole workflow would create duplicated worker executions and make trace reasoning harder. The current system only retries the Ollama invocation and structured parsing step, which improves resilience without changing orchestration semantics.
 
+## Why Caching Is Request-Level Only
+
+The current cache is intentionally narrow. It reuses exact structured results for identical requests, but it does not try to solve invalidation, staleness, or cross-version compatibility. That keeps the implementation predictable while still reducing repeated local-model work.
+
 ## What Is Deliberately Missing
 
 - retries
-- caches
+- cache invalidation and eviction policies
 - streaming
 - human approval
 - persistence
 
-In this list, "retries" now specifically means workflow-level retry and recovery policies. Lightweight model-layer retries are already implemented.
+In this list, "retries" now specifically means workflow-level retry and recovery policies. Lightweight model-layer retries are already implemented, and caching now specifically means broader cache lifecycle policy beyond exact request reuse.
 
 Those features are useful only after the base contract is stable.

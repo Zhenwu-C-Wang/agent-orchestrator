@@ -73,6 +73,19 @@ python main.py "How should I bootstrap a supervisor-worker system?" \
 
 This retry logic is limited to the model layer. It does not replay completed workflow steps.
 
+## Request Cache
+
+The system can reuse structured model results when the runner, model, prompts, payload, and response schema are identical:
+
+```bash
+python main.py "How should I bootstrap a supervisor-worker system?" \
+  --runner ollama \
+  --model qwen2.5:14b \
+  --cache-dir artifacts/cache
+```
+
+This cache is request-level and local-disk only. It does not implement TTL, eviction, or cross-version invalidation.
+
 ## Acceptance Run
 
 Run the fixed 5-question acceptance dataset with the fake runner:
