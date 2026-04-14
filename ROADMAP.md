@@ -1,0 +1,228 @@
+# ROADMAP: Executable MVP for a Supervisor / Worker Orchestrator
+
+This repository now targets a narrow, buildable first milestone instead of a broad multi-agent platform. The immediate goal is to ship a runnable closed loop that proves the orchestration shape before adding parallelism, caching, or human review.
+
+## 1. MVP Decision
+
+### Problem We Are Solving
+
+Build a supervisor-driven workflow that takes one user question, delegates it to focused workers, and returns one final answer with structured intermediate output.
+
+### In Scope
+
+- Python implementation
+- One fixed workflow: `ResearchWorker -> WriterWorker`
+- One `Supervisor`
+- One `TaskRouter`
+- One structured `ModelRunner` interface
+- One local-model adapter for Ollama
+- One deterministic fake runner for tests and demos
+- CLI entrypoint for local execution
+
+### Out Of Scope For This Milestone
+
+- Parallel task execution
+- Dynamic tool selection
+- Review or audit workers
+- Caching and retries
+- Human approval nodes
+- Streaming responses
+- External search, RAG, SQL, code execution
+
+The rule for this milestone is simple: if a feature is not required to prove the end-to-end orchestration contract, defer it.
+
+## 2. Locked Technical Choices
+
+These choices are intentionally fixed so implementation can start immediately.
+
+| Topic | Decision |
+| --- | --- |
+| Language | Python 3.11+ |
+| Schema validation | `pydantic` |
+| Local model provider | Ollama via HTTP API |
+| Test runner | `pytest` |
+| CLI entrypoint | `python main.py "question"` |
+| Default demo runner | `fake` |
+| Local model runner | `ollama` |
+
+## 3. MVP Workflow Contract
+
+### Workflow
+
+1. User submits a question.
+2. `Supervisor` asks `TaskRouter` for the workflow plan.
+3. `ResearchWorker` returns a `ResearchResult`.
+4. `WriterWorker` consumes that `ResearchResult` and returns a `FinalAnswer`.
+5. `Supervisor` returns the final answer plus task traces.
+
+### Required Schemas
+
+- `TaskEnvelope`
+- `ResearchTaskInput`
+- `WriterTaskInput`
+- `ResearchResult`
+- `FinalAnswer`
+- `TaskTrace`
+- `WorkflowResult`
+
+### Required Runtime Components
+
+- `Supervisor`
+- `TaskRouter`
+- `TaskManager`
+- `PromptManager`
+- `ModelRunner` protocol
+- `FakeModelRunner`
+- `OllamaClient`
+- `OllamaModelRunner`
+- `ResearchWorker`
+- `WriterWorker`
+
+## 4. Definition Of Done
+
+The MVP is done only when all of the following are true:
+
+- The command `python main.py "How should I bootstrap a supervisor-worker system?" --runner fake --output json` succeeds.
+- The output contains a structured `research` block, a structured `final_answer` block, and `traces`.
+- `Supervisor` does not handcraft answers; it only coordinates the workflow.
+- Each worker validates input and output against explicit schemas.
+- A local Ollama runner exists behind the same `ModelRunner` interface.
+- Automated tests cover the fixed workflow and CLI JSON output.
+
+## 5. Executable Work Breakdown
+
+### M0: Project Bootstrap
+
+Deliverables:
+
+- `pyproject.toml`
+- package directories and `__init__.py` files
+- CLI entrypoint
+- `README.md` install and run instructions
+
+Acceptance:
+
+- A new contributor can create a virtualenv, install dependencies, and run tests using only the README.
+
+### M1: Closed-Loop Orchestration
+
+Deliverables:
+
+- `Supervisor`
+- `TaskRouter`
+- `TaskManager`
+- `ResearchWorker`
+- `WriterWorker`
+- schemas for task input, worker output, and traces
+
+Acceptance:
+
+- The fixed `research -> writing` workflow runs end-to-end with the fake runner.
+- `WorkflowResult` includes both intermediate and final structured outputs.
+
+### M2: Local Model Adapter
+
+Deliverables:
+
+- `OllamaClient`
+- `OllamaModelRunner`
+- prompt templates for both workers
+
+Acceptance:
+
+- The same workflow can be executed with `--runner ollama --model <model-name>`.
+- Local-model calls are isolated behind the `ModelRunner` contract.
+
+### M3: Verification Baseline
+
+Deliverables:
+
+- workflow unit tests
+- CLI integration test
+- JSON extraction/parser test for model output normalization
+- architecture note
+
+Acceptance:
+
+- `pytest` passes locally.
+- The repo contains one document that explains responsibility boundaries.
+
+## 6. Task List For Immediate Execution
+
+These are the first engineering tasks to create as issues or work items.
+
+1. Create the Python package and dependency manifest.
+2. Define the core schemas in `schemas/`.
+3. Implement the `ModelRunner` protocol and fake runner.
+4. Implement the Ollama client and runner.
+5. Implement the prompt manager.
+6. Implement `ResearchWorker` and `WriterWorker`.
+7. Implement `TaskRouter`, `TaskManager`, and `Supervisor`.
+8. Add `main.py` and JSON/pretty output modes.
+9. Add tests for workflow, CLI, and JSON extraction.
+10. Add architecture and usage documentation.
+
+## 7. File Layout For This Milestone
+
+```text
+.
+├── docs/
+│   └── architecture.md
+├── models/
+│   ├── fake_runner.py
+│   ├── model_runner.py
+│   ├── ollama_client.py
+│   ├── ollama_runner.py
+│   └── prompt_manager.py
+├── orchestrator/
+│   ├── router.py
+│   ├── supervisor.py
+│   └── task_manager.py
+├── schemas/
+│   ├── result_schema.py
+│   ├── task_schema.py
+│   └── worker_schema.py
+├── tests/
+│   ├── test_cli.py
+│   ├── test_ollama_runner.py
+│   └── test_supervisor.py
+├── workers/
+│   ├── base.py
+│   ├── research_worker.py
+│   └── writer_worker.py
+├── main.py
+├── pyproject.toml
+├── README.md
+└── ROADMAP.md
+```
+
+## 8. Acceptance Dataset
+
+Use at least these five questions to validate the fake or local runner workflow:
+
+1. How should I bootstrap a supervisor-worker agent system?
+2. What are the tradeoffs of fake runners versus local models in an MVP?
+3. How should I define worker schemas before adding more workers?
+4. What risks appear when a supervisor directly writes the final answer?
+5. When should I add retry, cache, and audit layers to this system?
+
+The pass condition is not “the wording looks nice.” The pass condition is:
+
+- no runtime crash
+- valid schema output
+- correct workflow order
+- final answer references the research summary instead of inventing a separate path
+
+## 9. Next Milestone After This One
+
+Only after the MVP above is stable should the project add:
+
+- `ReviewWorker`
+- retry policy
+- audit log persistence
+- caching
+- status query APIs
+- parallel branches
+- human-in-the-loop checkpoints
+
+That sequence matters because observability and control are only useful once the smallest orchestration loop already works.
