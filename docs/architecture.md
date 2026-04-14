@@ -46,6 +46,10 @@ The current status layer is intentionally read-only. It reads persisted audit JS
 
 Acceptance runs answer a different question than workflow audit artifacts. Audit records preserve one workflow execution at a time, while acceptance records preserve one validation session across the fixed question set. Keeping them separate avoids mixing per-question traces with higher-level pass/fail history.
 
+## Why Acceptance Comparison Lives In The Store
+
+Acceptance comparison is data-oriented logic, not CLI logic. The store already owns loading and ordering persisted report records, so it is the right place to compute regression and improvement summaries without duplicating comparison rules across command paths.
+
 ## Why Exit Codes Are Normalized
 
 This project is increasingly scriptable. Once audit, cache, retries, and acceptance flows exist, shell automation needs something more precise than a generic non-zero exit. Typed exit codes let callers distinguish configuration mistakes from model failures and validation failures without parsing human-readable output.

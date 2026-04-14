@@ -136,3 +136,38 @@ def test_acceptance_runs_cli_returns_acceptance_query_exit_code_for_missing_run(
 
     assert completed.returncode == 10
     assert "acceptance-query-error:" in completed.stderr
+
+
+def test_acceptance_runs_cli_returns_acceptance_query_exit_code_without_baseline(tmp_path) -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orchestrator.acceptance",
+            "--runner",
+            "fake",
+            "--report-dir",
+            str(tmp_path),
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0
+
+    compare = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orchestrator.acceptance_runs",
+            "--report-dir",
+            str(tmp_path),
+            "compare",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert compare.returncode == 10
+    assert "acceptance-query-error:" in compare.stderr

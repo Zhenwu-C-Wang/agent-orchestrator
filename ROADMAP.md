@@ -22,6 +22,7 @@ Build a supervisor-driven workflow that takes one user question, delegates it to
 - One read-only local run status query over audit artifacts
 - One optional acceptance report logger for validation persistence
 - One read-only acceptance report query over local JSON artifacts
+- One acceptance report comparison path for regression checks
 - One model-layer retry policy for Ollama calls and JSON parsing
 - One optional request-level structured result cache
 - One optional TTL-based cache expiry policy
@@ -107,6 +108,7 @@ The MVP is done only when all of the following are true:
 - Audit logging can persist a run as one JSON artifact when requested.
 - Local runs can be listed and inspected through a read-only audit query CLI.
 - Acceptance runs can optionally persist one report artifact and query it later.
+- Acceptance history can be compared against a baseline run for regression checks.
 - The Ollama runner can retry model invocation or JSON parsing failures without replaying the whole workflow.
 - Exact repeated requests can reuse cached structured results when cache is enabled.
 - Cache TTL can expire older entries when configured.
@@ -158,6 +160,7 @@ Deliverables:
 - read-only audit query CLI
 - optional acceptance report persistence
 - read-only acceptance report query CLI
+- acceptance report comparison support
 - model-layer retry policy
 - request-level structured result cache
 - TTL-based cache expiry and local cache management CLI
@@ -170,6 +173,7 @@ Acceptance:
 - Audit artifacts can be written without changing worker logic.
 - Run inspection reads persisted artifacts instead of requiring a live process registry.
 - Acceptance history is preserved separately from per-question workflow audit records.
+- Acceptance regression checks compare report artifacts instead of replaying old runs.
 - Retry logic is isolated to model execution and parse recovery.
 - Cache reuse is isolated to exact request matches and does not affect workflow order.
 - Cache expiry remains local, opt-in, and request-level.

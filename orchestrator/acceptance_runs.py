@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from schemas.acceptance_schema import AcceptanceRecord
+from schemas.acceptance_schema import AcceptanceComparison, AcceptanceRecord
 from tools.acceptance import AcceptanceStore
 from tools.errors import AcceptanceQueryError, run_cli
 
@@ -54,6 +54,28 @@ def parse_args() -> argparse.Namespace:
         default="pretty",
         help="Output mode.",
     )
+
+    compare_parser = subparsers.add_parser(
+        "compare",
+        help="Compare one acceptance run against a baseline run.",
+    )
+    compare_parser.add_argument(
+        "run_id",
+        nargs="?",
+        default=None,
+        help="The current run_id to compare. Defaults to the latest run.",
+    )
+    compare_parser.add_argument(
+        "--baseline-run-id",
+        default=None,
+        help="Explicit baseline run_id. Defaults to the previous run before the current one.",
+    )
+    compare_parser.add_argument(
+        "--output",
+        choices=["pretty", "json"],
+        default="pretty",
+        help="Output mode.",
+    )
     return parser.parse_args()
 
 
@@ -95,6 +117,35 @@ def format_detail(store: AcceptanceStore, record: AcceptanceRecord) -> str:
     return "\n".join(lines)
 
 
+def format_comparison(comparison: AcceptanceComparison) -> str:
+    changed_cases = [case for case in comparison.case_comparisons if case.changed]
+    lines = [
+        f"Current Run ID: {comparison.current_run_id}",
+        f"Baseline Run ID: {comparison.baseline_run_id}",
+        f"Current Status: {comparison.current_status}",
+        f"Baseline Status: {comparison.baseline_status}",
+        f"Passed Delta: {comparison.passed_cases_delta}",
+        f"Failed Delta: {comparison.failed_cases_delta}",
+        f"Warning Delta: {comparison.warning_count_delta}",
+        f"Regressions: {comparison.regression_count}",
+        f"Improvements: {comparison.improvement_count}",
+        "Changed Cases:",
+    ]
+    if not changed_cases:
+        lines.append("- none")
+    else:
+        lines.extend(
+            (
+                f"- {case.question} | "
+                f"baseline_passed={case.baseline_passed} | current_passed={case.current_passed} | "
+                f"baseline_warnings={case.baseline_warning_count} | current_warnings={case.current_warning_count} | "
+                f"regression={case.regression} | improvement={case.improvement}"
+            )
+            for case in changed_cases
+        )
+    return "\n".join(lines)
+
+
 def _main() -> None:
     args = parse_args()
     store = AcceptanceStore(args.report_dir)
@@ -127,6 +178,30 @@ def _main() -> None:
             print(record.model_dump_json(indent=2))
         else:
             print(format_detail(store, record))
+        return
+
+    if args.command == "compare":
+        current = store.get_record(args.run_id) if args.run_id else store.latest_record()
+        if current is None:
+            if args.run_id:
+                raise AcceptanceQueryError(f"Acceptance run not found: {args.run_id}")
+            raise AcceptanceQueryError("No acceptance records found.")
+
+        baseline = (
+            store.get_record(args.baseline_run_id)
+            if args.baseline_run_id
+            else store.previous_record(current.run_id)
+        )
+        if baseline is None:
+            if args.baseline_run_id:
+                raise AcceptanceQueryError(f"Acceptance baseline run not found: {args.baseline_run_id}")
+            raise AcceptanceQueryError("No baseline acceptance record found.")
+
+        comparison = store.compare_records(current, baseline)
+        if args.output == "json":
+            print(comparison.model_dump_json(indent=2))
+        else:
+            print(format_comparison(comparison))
         return
 
 

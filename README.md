@@ -194,6 +194,18 @@ Show the latest acceptance run:
 python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance latest
 ```
 
+Compare the latest acceptance run against the previous one:
+
+```bash
+python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance compare
+```
+
+Compare two explicit acceptance runs:
+
+```bash
+python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance compare <current_run_id> --baseline-run-id <baseline_run_id>
+```
+
 ## Project Layout
 
 - [main.py](./main.py)
