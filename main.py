@@ -47,6 +47,12 @@ def parse_args() -> argparse.Namespace:
         help="Optional directory for request-level structured result caching.",
     )
     parser.add_argument(
+        "--cache-max-age-seconds",
+        type=float,
+        default=None,
+        help="Optional TTL for cache entries. Requires --cache-dir.",
+    )
+    parser.add_argument(
         "--max-retries",
         type=int,
         default=1,
@@ -70,6 +76,7 @@ def _main() -> None:
         enable_review=args.with_review,
         audit_dir=args.audit_dir,
         cache_dir=args.cache_dir,
+        cache_max_age_seconds=args.cache_max_age_seconds,
         max_retries=args.max_retries,
         retry_backoff_seconds=args.retry_backoff_seconds,
     )

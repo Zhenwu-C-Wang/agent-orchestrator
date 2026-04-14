@@ -86,7 +86,9 @@ def format_detail(store: AuditStore, record: AuditRecord) -> str:
         *[
             (
                 f"- {trace.task_id} | {trace.worker_name} | {trace.status} | "
-                f"cache_hit={trace.metadata.get('cache_hit')} | attempts={trace.metadata.get('attempt_count')}"
+                f"cache_status={trace.metadata.get('cache_status')} | "
+                f"cache_hit={trace.metadata.get('cache_hit')} | "
+                f"attempts={trace.metadata.get('attempt_count')}"
             )
             for trace in record.traces
         ],

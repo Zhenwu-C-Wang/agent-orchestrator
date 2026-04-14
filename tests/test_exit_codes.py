@@ -97,3 +97,22 @@ def test_acceptance_cli_returns_acceptance_failed_exit_code() -> None:
     assert completed.returncode == 8
     assert "acceptance-failed:" in completed.stderr
     assert "Passed: 0/5" in completed.stdout
+
+
+def test_cache_cli_returns_cache_query_exit_code_when_prune_lacks_ttl(tmp_path) -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orchestrator.cache",
+            "--cache-dir",
+            str(tmp_path),
+            "prune",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 9
+    assert "cache-query-error:" in completed.stderr

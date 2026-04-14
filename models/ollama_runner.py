@@ -73,6 +73,7 @@ class OllamaModelRunner(StructuredModelRunner):
                     "model": self.model,
                     "cache_enabled": False,
                     "cache_hit": False,
+                    "cache_status": "disabled",
                     "attempt_count": attempt_number,
                     "retry_count": attempt_number - 1,
                 }
@@ -84,6 +85,7 @@ class OllamaModelRunner(StructuredModelRunner):
                     "model": self.model,
                     "cache_enabled": False,
                     "cache_hit": False,
+                    "cache_status": "disabled",
                     "attempt_count": attempt_number,
                     "retry_count": attempt_number - 1,
                 }

@@ -31,35 +31,37 @@ class CachedModelRunner(StructuredModelRunner):
             request=request,
             response_model=response_model,
         )
-        cached = self.cache.get(cache_key=cache_key, response_model=response_model)
-        if cached is not None:
+        lookup = self.cache.lookup(cache_key=cache_key, response_model=response_model)
+        cache_metadata = {
+            "runner": self.namespace.get("runner"),
+            "model": self.namespace.get("model"),
+            "cache_enabled": True,
+            "cache_hit": lookup.status == "hit",
+            "cache_status": lookup.status,
+            "cache_key": cache_key,
+            "cache_path": str(lookup.path),
+        }
+        if lookup.entry is not None:
+            cache_metadata["cache_created_at"] = lookup.entry.created_at
+
+        if lookup.response is not None:
             self._last_invocation_metadata = {
-                "runner": self.namespace.get("runner"),
-                "model": self.namespace.get("model"),
-                "cache_enabled": True,
-                "cache_hit": True,
-                "cache_key": cache_key,
-                "cache_path": str(self.cache.path_for(cache_key)),
+                **cache_metadata,
                 "attempt_count": 0,
                 "retry_count": 0,
             }
-            return cached
+            return lookup.response
 
         try:
             result = self.runner.generate_structured(request, response_model)
         except Exception:
             self._last_invocation_metadata = {
                 **self._inner_metadata(),
-                "runner": self.namespace.get("runner"),
-                "model": self.namespace.get("model"),
-                "cache_enabled": True,
-                "cache_hit": False,
-                "cache_key": cache_key,
-                "cache_path": str(self.cache.path_for(cache_key)),
+                **cache_metadata,
             }
             raise
 
-        self.cache.set(
+        cache_path = self.cache.set(
             cache_key=cache_key,
             metadata={
                 **self.namespace,
@@ -70,12 +72,8 @@ class CachedModelRunner(StructuredModelRunner):
         )
         self._last_invocation_metadata = {
             **self._inner_metadata(),
-            "runner": self.namespace.get("runner"),
-            "model": self.namespace.get("model"),
-            "cache_enabled": True,
-            "cache_hit": False,
-            "cache_key": cache_key,
-            "cache_path": str(self.cache.path_for(cache_key)),
+            **cache_metadata,
+            "cache_path": str(cache_path),
         }
         return result
 

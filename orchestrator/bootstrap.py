@@ -25,6 +25,7 @@ def build_supervisor(
     enable_review: bool = False,
     audit_dir: str | None = None,
     cache_dir: str | None = None,
+    cache_max_age_seconds: float | None = None,
     max_retries: int = 1,
     retry_backoff_seconds: float = 0.25,
 ) -> Supervisor:
@@ -32,6 +33,10 @@ def build_supervisor(
         raise ConfigurationError("max_retries must be greater than or equal to 0.")
     if retry_backoff_seconds < 0:
         raise ConfigurationError("retry_backoff_seconds must be greater than or equal to 0.")
+    if cache_max_age_seconds is not None and cache_max_age_seconds < 0:
+        raise ConfigurationError("cache_max_age_seconds must be greater than or equal to 0.")
+    if cache_max_age_seconds is not None and not cache_dir:
+        raise ConfigurationError("cache_max_age_seconds requires cache_dir.")
 
     model_name = None if runner_name == "fake" else model
     if runner_name == "fake":
@@ -51,7 +56,10 @@ def build_supervisor(
     if cache_dir:
         runner = CachedModelRunner(
             runner=runner,
-            cache=StructuredResultCache(cache_dir),
+            cache=StructuredResultCache(
+                cache_dir,
+                max_age_seconds=cache_max_age_seconds,
+            ),
             namespace={
                 "runner": runner_name,
                 "model": model_name,
@@ -74,6 +82,7 @@ def build_supervisor(
                 "review_enabled": enable_review,
                 "cache_enabled": bool(cache_dir),
                 "cache_dir": cache_dir,
+                "cache_max_age_seconds": cache_max_age_seconds,
                 "max_retries": max_retries,
                 "retry_backoff_seconds": retry_backoff_seconds,
             },

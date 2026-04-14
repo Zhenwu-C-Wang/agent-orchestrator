@@ -1,6 +1,6 @@
 # ROADMAP: Executable MVP for a Supervisor / Worker Orchestrator
 
-This repository now targets a narrow, buildable first milestone instead of a broad multi-agent platform. The immediate goal is to ship a runnable closed loop that proves the orchestration shape before adding parallelism, caching, or human review.
+This repository now targets a narrow, buildable first milestone instead of a broad multi-agent platform. The immediate goal is to ship a runnable closed loop that proves the orchestration shape before adding parallelism, advanced cache policy, or human review.
 
 ## 1. MVP Decision
 
@@ -22,6 +22,8 @@ Build a supervisor-driven workflow that takes one user question, delegates it to
 - One read-only local run status query over audit artifacts
 - One model-layer retry policy for Ollama calls and JSON parsing
 - One optional request-level structured result cache
+- One optional TTL-based cache expiry policy
+- One local cache inspection and maintenance CLI
 - One normalized CLI error taxonomy with stable exit codes
 - CLI entrypoint for local execution
 
@@ -30,7 +32,7 @@ Build a supervisor-driven workflow that takes one user question, delegates it to
 - Parallel task execution
 - Dynamic tool selection
 - Additional review or audit workers
-- Cache invalidation/eviction policy and workflow-level retries
+- Advanced cache invalidation/eviction policy and workflow-level retries
 - Human approval nodes
 - Streaming responses
 - External search, RAG, SQL, code execution
@@ -104,7 +106,9 @@ The MVP is done only when all of the following are true:
 - Local runs can be listed and inspected through a read-only audit query CLI.
 - The Ollama runner can retry model invocation or JSON parsing failures without replaying the whole workflow.
 - Exact repeated requests can reuse cached structured results when cache is enabled.
-- Cache hit or miss is visible in task-level trace metadata and audit artifacts.
+- Cache TTL can expire older entries when configured.
+- Cache hit, miss, or expiry status is visible in task-level trace metadata and audit artifacts.
+- Local cache entries can be listed, pruned, or cleared through a dedicated CLI.
 - CLI failures are classified into stable exit codes for automation.
 - Automated tests cover the fixed workflow and CLI JSON output.
 
@@ -151,6 +155,7 @@ Deliverables:
 - read-only audit query CLI
 - model-layer retry policy
 - request-level structured result cache
+- TTL-based cache expiry and local cache management CLI
 - normalized CLI exit codes
 
 Acceptance:
@@ -161,6 +166,7 @@ Acceptance:
 - Run inspection reads persisted artifacts instead of requiring a live process registry.
 - Retry logic is isolated to model execution and parse recovery.
 - Cache reuse is isolated to exact request matches and does not affect workflow order.
+- Cache expiry remains local, opt-in, and request-level.
 - CLI automation can rely on stable exit codes instead of parsing free-form error text.
 
 ### M3: Verification Baseline
@@ -193,9 +199,10 @@ These are the first engineering tasks to create as issues or work items.
 10. Add read-only run status query over persisted audit artifacts.
 11. Add model-layer retries for Ollama execution and parse recovery.
 12. Add request-level structured result caching.
-13. Add normalized CLI failure classification and exit codes.
-14. Add tests for workflow, CLI, audit persistence, status query, retry behavior, caching, exit codes, and JSON extraction.
-15. Add architecture and usage documentation.
+13. Add TTL-based cache expiry and a local cache management CLI.
+14. Add normalized CLI failure classification and exit codes.
+15. Add tests for workflow, CLI, audit persistence, status query, retry behavior, caching, cache expiry, cache management, exit codes, and JSON extraction.
+16. Add architecture and usage documentation.
 
 ## 7. File Layout For This Milestone
 
@@ -211,6 +218,7 @@ These are the first engineering tasks to create as issues or work items.
 │   ├── ollama_runner.py
 │   └── prompt_manager.py
 ├── orchestrator/
+│   ├── cache.py
 │   ├── runs.py
 │   ├── router.py
 │   ├── supervisor.py
@@ -229,6 +237,7 @@ These are the first engineering tasks to create as issues or work items.
 ├── tests/
 │   ├── test_audit_logging.py
 │   ├── test_cache.py
+│   ├── test_cache_query.py
 │   ├── test_cli.py
 │   ├── test_exit_codes.py
 │   ├── test_ollama_runner.py
@@ -268,7 +277,7 @@ The pass condition is not “the wording looks nice.” The pass condition is:
 Only after the MVP above is stable should the project add:
 
 - workflow-level retry policy
-- cache invalidation and eviction policy
+- advanced cache invalidation and eviction policy
 - richer status/query APIs beyond audit-backed local inspection
 - parallel branches
 - human-in-the-loop checkpoints

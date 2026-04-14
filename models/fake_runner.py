@@ -21,6 +21,7 @@ class FakeModelRunner(StructuredModelRunner):
             "model": None,
             "cache_enabled": False,
             "cache_hit": False,
+            "cache_status": "disabled",
             "attempt_count": 1,
             "retry_count": 0,
         }

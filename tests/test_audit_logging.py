@@ -29,6 +29,7 @@ def test_successful_run_writes_audit_record(tmp_path) -> None:
     assert payload["result"]["review"]["consistent"] is True
     assert [trace["worker_name"] for trace in payload["traces"]] == ["research", "writer", "review"]
     assert all(trace["metadata"]["cache_hit"] is False for trace in payload["traces"])
+    assert all(trace["metadata"]["cache_status"] == "miss" for trace in payload["traces"])
 
 
 def test_failed_run_writes_failure_audit_record(tmp_path) -> None:

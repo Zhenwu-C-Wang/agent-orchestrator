@@ -51,6 +51,7 @@ The CLIs use normalized non-zero exit codes for automation:
 - `6`: unclassified workflow execution error
 - `7`: audit query error
 - `8`: acceptance run finished with failed cases
+- `9`: cache query or cache management error
 
 ## Audit Logs
 
@@ -115,8 +116,44 @@ python main.py "How should I bootstrap a supervisor-worker system?" \
   --cache-dir artifacts/cache
 ```
 
-This cache is request-level and local-disk only. It does not implement TTL, eviction, or cross-version invalidation.
-When caching is enabled, each `TaskTrace` also carries `cache_hit`, `cache_key`, and related metadata, and the same fields are preserved in audit records.
+Optionally apply a TTL to treat older entries as expired on lookup:
+
+```bash
+python main.py "How should I bootstrap a supervisor-worker system?" \
+  --runner ollama \
+  --model qwen2.5:14b \
+  --cache-dir artifacts/cache \
+  --cache-max-age-seconds 3600
+```
+
+This cache remains request-level and local-disk only. It now supports opt-in TTL expiry, but it still does not implement size-based eviction or cross-version invalidation.
+When caching is enabled, each `TaskTrace` also carries `cache_hit`, `cache_status`, `cache_key`, and related metadata, and the same fields are preserved in audit records.
+
+## Cache Query
+
+List recent cache entries:
+
+```bash
+python -m orchestrator.cache --cache-dir artifacts/cache list
+```
+
+Show cache summary stats:
+
+```bash
+python -m orchestrator.cache --cache-dir artifacts/cache stats
+```
+
+Prune expired cache entries using a TTL:
+
+```bash
+python -m orchestrator.cache --cache-dir artifacts/cache --max-age-seconds 3600 prune
+```
+
+Clear the cache directory:
+
+```bash
+python -m orchestrator.cache --cache-dir artifacts/cache clear
+```
 
 ## Acceptance Run
 

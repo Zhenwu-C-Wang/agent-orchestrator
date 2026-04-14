@@ -39,6 +39,11 @@ class AcceptanceFailedError(AgentOrchestratorError):
     error_code = "acceptance-failed"
 
 
+class CacheQueryError(AgentOrchestratorError):
+    exit_code = 9
+    error_code = "cache-query-error"
+
+
 def run_cli(entrypoint: Callable[[], int | None]) -> None:
     try:
         exit_code = entrypoint()

@@ -86,6 +86,7 @@ def run_acceptance(
     enable_review: bool = False,
     audit_dir: str | None = None,
     cache_dir: str | None = None,
+    cache_max_age_seconds: float | None = None,
     max_retries: int = 1,
     retry_backoff_seconds: float = 0.25,
 ) -> AcceptanceReport:
@@ -96,6 +97,7 @@ def run_acceptance(
         enable_review=enable_review,
         audit_dir=audit_dir,
         cache_dir=cache_dir,
+        cache_max_age_seconds=cache_max_age_seconds,
         max_retries=max_retries,
         retry_backoff_seconds=retry_backoff_seconds,
     )
@@ -198,6 +200,12 @@ def parse_args() -> argparse.Namespace:
         help="Optional directory for request-level structured result caching.",
     )
     parser.add_argument(
+        "--cache-max-age-seconds",
+        type=float,
+        default=None,
+        help="Optional TTL for cache entries. Requires --cache-dir.",
+    )
+    parser.add_argument(
         "--max-retries",
         type=int,
         default=1,
@@ -221,6 +229,7 @@ def _main() -> None:
         enable_review=args.with_review,
         audit_dir=args.audit_dir,
         cache_dir=args.cache_dir,
+        cache_max_age_seconds=args.cache_max_age_seconds,
         max_retries=args.max_retries,
         retry_backoff_seconds=args.retry_backoff_seconds,
     )

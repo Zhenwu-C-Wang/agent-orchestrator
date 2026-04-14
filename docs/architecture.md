@@ -15,7 +15,8 @@ This repository implements one narrow orchestration contract on purpose.
 - `AuditLogger` owns JSON persistence for completed or failed workflow runs.
 - `AuditStore` owns read-only inspection of persisted workflow runs.
 - `RetryPolicy` owns model-layer retry behavior and backoff configuration.
-- `StructuredResultCache` owns exact request-level structured result reuse.
+- `StructuredResultCache` owns exact request-level structured result reuse and opt-in TTL expiry.
+- `orchestrator.cache` owns local cache inspection and maintenance commands.
 - `AgentOrchestratorError` and CLI wrappers own error classification and exit-code normalization.
 
 ## Why The Workflow Is Fixed
@@ -47,22 +48,22 @@ This project is increasingly scriptable. Once audit, cache, retries, and accepta
 
 Retrying the whole workflow would create duplicated worker executions and make trace reasoning harder. The current system only retries the Ollama invocation and structured parsing step, which improves resilience without changing orchestration semantics.
 
-## Why Caching Is Request-Level Only
+## Why Cache TTL Is Opt-In
 
-The current cache is intentionally narrow. It reuses exact structured results for identical requests, but it does not try to solve invalidation, staleness, or cross-version compatibility. That keeps the implementation predictable while still reducing repeated local-model work.
+The current cache is intentionally narrow. It reuses exact structured results for identical requests, and TTL expiry is optional because some local workflows prefer deterministic reuse over freshness heuristics. The implementation now handles simple staleness control, but it still avoids broader eviction and compatibility policy.
 
 ## Why Cache Observability Lives In Task Traces
 
-Cache behavior affects each worker step, not just the overall run. Surfacing `cache_hit`, `cache_key`, and attempt metadata on `TaskTrace` keeps the signal close to the execution step that used it and automatically carries the same information into audit records.
+Cache behavior affects each worker step, not just the overall run. Surfacing `cache_hit`, `cache_status`, `cache_key`, and attempt metadata on `TaskTrace` keeps the signal close to the execution step that used it and automatically carries the same information into audit records.
 
 ## What Is Deliberately Missing
 
 - retries
-- cache invalidation and eviction policies
+- advanced cache invalidation and eviction policies
 - streaming
 - human approval
 - persistence
 
-In this list, "retries" now specifically means workflow-level retry and recovery policies. Lightweight model-layer retries are already implemented, and caching now specifically means broader cache lifecycle policy beyond exact request reuse.
+In this list, "retries" now specifically means workflow-level retry and recovery policies. Lightweight model-layer retries are already implemented, and caching now specifically means broader cache lifecycle policy beyond exact request reuse and optional TTL expiry.
 
 Those features are useful only after the base contract is stable.
