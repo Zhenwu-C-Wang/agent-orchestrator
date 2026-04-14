@@ -12,6 +12,7 @@ This repository implements one narrow orchestration contract on purpose.
 - `ReviewWorker` owns only consistency checking between research output and final answer.
 - `PromptManager` owns prompt wording and prompt payload construction.
 - `ModelRunner` implementations own model invocation and structured parsing.
+- `AuditLogger` owns JSON persistence for completed or failed workflow runs.
 
 ## Why The Workflow Is Fixed
 
@@ -25,6 +26,10 @@ The project is proving orchestration mechanics first, not agent autonomy. A fixe
 ## Why Review Is Optional
 
 The review stage adds useful signal, but it also adds latency and another structured-output dependency. Keeping it behind a flag allows the base workflow to stay fast while the project hardens the consistency-check contract.
+
+## Why Audit Logging Is Optional
+
+Audit persistence is useful for debugging local-model behavior and preserving traces from real runs, but it should not be forced on every invocation. Making it opt-in keeps the default workflow clean while preserving a stable path for investigation.
 
 ## What Is Deliberately Missing
 

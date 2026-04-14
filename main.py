@@ -35,6 +35,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable the optional ReviewWorker stage.",
     )
+    parser.add_argument(
+        "--audit-dir",
+        default=None,
+        help="Optional directory where one JSON audit record will be written per run.",
+    )
     return parser.parse_args()
 
 
@@ -45,6 +50,7 @@ def main() -> None:
         model=args.model,
         base_url=args.base_url,
         enable_review=args.with_review,
+        audit_dir=args.audit_dir,
     )
     result = supervisor.run(args.question)
     if args.output == "json":

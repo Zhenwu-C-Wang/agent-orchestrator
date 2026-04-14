@@ -40,6 +40,24 @@ By default the Ollama client calls `http://localhost:11434`.
 - `--output pretty`: human-readable summary
 - `--output json`: full structured `WorkflowResult`
 
+## Audit Logs
+
+Write one JSON audit record for a single run:
+
+```bash
+python main.py "How should I bootstrap a supervisor-worker system?" \
+  --runner fake \
+  --audit-dir artifacts/runs
+```
+
+Write one JSON audit record per acceptance question:
+
+```bash
+python -m orchestrator.acceptance --runner fake --audit-dir artifacts/runs
+```
+
+Each record contains run metadata, traces, final structured output, and failure details when a run crashes.
+
 ## Acceptance Run
 
 Run the fixed 5-question acceptance dataset with the fake runner:
@@ -64,6 +82,7 @@ Add `--with-review` to validate the optional three-stage workflow.
 - [workers/](./workers)
 - [models/](./models)
 - [schemas/](./schemas)
+- [tools/](./tools)
 - [tests/](./tests)
 - [docs/architecture.md](./docs/architecture.md)
 - [ROADMAP.md](./ROADMAP.md)

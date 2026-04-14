@@ -18,6 +18,7 @@ Build a supervisor-driven workflow that takes one user question, delegates it to
 - One structured `ModelRunner` interface
 - One local-model adapter for Ollama
 - One deterministic fake runner for tests and demos
+- One optional JSON audit logger for run persistence
 - CLI entrypoint for local execution
 
 ### Out Of Scope For This Milestone
@@ -29,6 +30,7 @@ Build a supervisor-driven workflow that takes one user question, delegates it to
 - Human approval nodes
 - Streaming responses
 - External search, RAG, SQL, code execution
+- Durable storage beyond local JSON audit artifacts
 
 The rule for this milestone is simple: if a feature is not required to prove the end-to-end orchestration contract, defer it.
 
@@ -76,6 +78,7 @@ These choices are intentionally fixed so implementation can start immediately.
 - `FakeModelRunner`
 - `OllamaClient`
 - `OllamaModelRunner`
+- `AuditLogger`
 - `ResearchWorker`
 - `WriterWorker`
 - `ReviewWorker` behind a feature flag
@@ -89,6 +92,7 @@ The MVP is done only when all of the following are true:
 - `Supervisor` does not handcraft answers; it only coordinates the workflow.
 - Each worker validates input and output against explicit schemas.
 - A local Ollama runner exists behind the same `ModelRunner` interface.
+- Audit logging can persist a run as one JSON artifact when requested.
 - Automated tests cover the fixed workflow and CLI JSON output.
 
 ## 5. Executable Work Breakdown
@@ -130,11 +134,13 @@ Deliverables:
 - `OllamaClient`
 - `OllamaModelRunner`
 - prompt templates for both workers
+- optional JSON audit persistence
 
 Acceptance:
 
 - The same workflow can be executed with `--runner ollama --model <model-name>`.
 - Local-model calls are isolated behind the `ModelRunner` contract.
+- Audit artifacts can be written without changing worker logic.
 
 ### M3: Verification Baseline
 
@@ -162,8 +168,9 @@ These are the first engineering tasks to create as issues or work items.
 6. Implement `ResearchWorker`, `WriterWorker`, and the optional `ReviewWorker`.
 7. Implement `TaskRouter`, `TaskManager`, and `Supervisor`.
 8. Add `main.py` and JSON/pretty output modes.
-9. Add tests for workflow, CLI, and JSON extraction.
-10. Add architecture and usage documentation.
+9. Add optional JSON audit logging.
+10. Add tests for workflow, CLI, audit persistence, and JSON extraction.
+11. Add architecture and usage documentation.
 
 ## 7. File Layout For This Milestone
 
@@ -182,10 +189,14 @@ These are the first engineering tasks to create as issues or work items.
 │   ├── supervisor.py
 │   └── task_manager.py
 ├── schemas/
+│   ├── audit_schema.py
 │   ├── result_schema.py
 │   ├── task_schema.py
 │   └── worker_schema.py
+├── tools/
+│   └── audit.py
 ├── tests/
+│   ├── test_audit_logging.py
 │   ├── test_cli.py
 │   ├── test_ollama_runner.py
 │   ├── test_review_workflow.py
@@ -223,7 +234,6 @@ The pass condition is not “the wording looks nice.” The pass condition is:
 Only after the MVP above is stable should the project add:
 
 - retry policy
-- audit log persistence
 - caching
 - status query APIs
 - parallel branches

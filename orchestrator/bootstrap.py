@@ -7,6 +7,7 @@ from models.prompt_manager import PromptManager
 from orchestrator.router import TaskRouter
 from orchestrator.supervisor import Supervisor
 from schemas.result_schema import WorkflowResult
+from tools.audit import AuditLogger
 from workers.research_worker import ResearchWorker
 from workers.review_worker import ReviewWorker
 from workers.writer_worker import WriterWorker
@@ -18,6 +19,7 @@ def build_supervisor(
     model: str = "llama3.1",
     base_url: str = "http://localhost:11434",
     enable_review: bool = False,
+    audit_dir: str | None = None,
 ) -> Supervisor:
     if runner_name == "fake":
         runner = FakeModelRunner()
@@ -35,9 +37,20 @@ def build_supervisor(
         "writer": WriterWorker(runner=runner, prompt_manager=prompt_manager),
         "review": ReviewWorker(runner=runner, prompt_manager=prompt_manager),
     }
+    audit_logger = None
+    if audit_dir:
+        audit_logger = AuditLogger(
+            audit_dir,
+            metadata={
+                "runner": runner_name,
+                "model": None if runner_name == "fake" else model,
+                "review_enabled": enable_review,
+            },
+        )
     return Supervisor(
         workers=workers,
         router=TaskRouter(enable_review=enable_review),
+        audit_logger=audit_logger,
     )
 
 

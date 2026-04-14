@@ -83,12 +83,14 @@ def run_acceptance(
     model: str,
     base_url: str,
     enable_review: bool = False,
+    audit_dir: str | None = None,
 ) -> AcceptanceReport:
     supervisor = build_supervisor(
         runner_name=runner_name,
         model=model,
         base_url=base_url,
         enable_review=enable_review,
+        audit_dir=audit_dir,
     )
 
     case_results: list[AcceptanceCaseResult] = []
@@ -178,6 +180,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable the optional ReviewWorker stage.",
     )
+    parser.add_argument(
+        "--audit-dir",
+        default=None,
+        help="Optional directory where one JSON audit record will be written per question.",
+    )
     return parser.parse_args()
 
 
@@ -188,6 +195,7 @@ def main() -> None:
         model=args.model,
         base_url=args.base_url,
         enable_review=args.with_review,
+        audit_dir=args.audit_dir,
     )
     if args.output == "json":
         print(report.model_dump_json(indent=2))

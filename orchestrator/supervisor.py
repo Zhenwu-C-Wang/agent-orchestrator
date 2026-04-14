@@ -6,6 +6,7 @@ from orchestrator.router import TaskRouter
 from orchestrator.task_manager import TaskManager
 from schemas.result_schema import FinalAnswer, ResearchResult, ReviewResult, WorkflowResult
 from schemas.task_schema import TaskTrace, TaskType
+from tools.audit import AuditLogger
 
 
 class Supervisor:
@@ -16,10 +17,12 @@ class Supervisor:
         workers: dict[str, object],
         router: TaskRouter | None = None,
         task_manager: TaskManager | None = None,
+        audit_logger: AuditLogger | None = None,
     ) -> None:
         self.workers = workers
         self.router = router or TaskRouter()
         self.task_manager = task_manager or TaskManager()
+        self.audit_logger = audit_logger
 
     def run(self, question: str) -> WorkflowResult:
         context: dict[str, object] = {}
@@ -38,6 +41,7 @@ class Supervisor:
             )
 
             started_at = perf_counter()
+            caught_exc: Exception | None = None
             try:
                 worker = self.workers[step.worker_name]
                 result = worker.run(task)
@@ -47,7 +51,7 @@ class Supervisor:
                 result = None
                 error = str(exc)
                 status = "failed"
-                raise
+                caught_exc = exc
             finally:
                 duration_ms = int((perf_counter() - started_at) * 1000)
                 traces.append(
@@ -62,6 +66,15 @@ class Supervisor:
                     )
                 )
 
+            if caught_exc is not None:
+                if self.audit_logger is not None:
+                    self.audit_logger.record_failure(
+                        question=question,
+                        traces=traces,
+                        error=error or str(caught_exc),
+                    )
+                raise caught_exc
+
             if step.task_type is TaskType.RESEARCH:
                 research_result = result
                 context["research"] = result
@@ -75,10 +88,13 @@ class Supervisor:
         if research_result is None or final_answer is None:
             raise RuntimeError("Workflow did not produce both research and final answer outputs.")
 
-        return WorkflowResult(
+        workflow_result = WorkflowResult(
             question=question,
             research=research_result,
             final_answer=final_answer,
             review=review_result,
             traces=traces,
         )
+        if self.audit_logger is not None:
+            self.audit_logger.record_success(workflow_result)
+        return workflow_result

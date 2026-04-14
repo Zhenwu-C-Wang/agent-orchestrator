@@ -22,5 +22,5 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.setuptools]
-packages = ["models", "orchestrator", "schemas", "workers"]
+packages = ["models", "orchestrator", "schemas", "tools", "workers"]
 py-modules = ["main"]
