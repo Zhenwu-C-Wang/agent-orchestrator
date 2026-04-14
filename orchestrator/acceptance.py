@@ -84,6 +84,8 @@ def run_acceptance(
     base_url: str,
     enable_review: bool = False,
     audit_dir: str | None = None,
+    max_retries: int = 1,
+    retry_backoff_seconds: float = 0.25,
 ) -> AcceptanceReport:
     supervisor = build_supervisor(
         runner_name=runner_name,
@@ -91,6 +93,8 @@ def run_acceptance(
         base_url=base_url,
         enable_review=enable_review,
         audit_dir=audit_dir,
+        max_retries=max_retries,
+        retry_backoff_seconds=retry_backoff_seconds,
     )
 
     case_results: list[AcceptanceCaseResult] = []
@@ -185,6 +189,18 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional directory where one JSON audit record will be written per question.",
     )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=1,
+        help="Maximum number of model-layer retries for the Ollama runner.",
+    )
+    parser.add_argument(
+        "--retry-backoff-seconds",
+        type=float,
+        default=0.25,
+        help="Base backoff delay between Ollama retries.",
+    )
     return parser.parse_args()
 
 
@@ -196,6 +212,8 @@ def main() -> None:
         base_url=args.base_url,
         enable_review=args.with_review,
         audit_dir=args.audit_dir,
+        max_retries=args.max_retries,
+        retry_backoff_seconds=args.retry_backoff_seconds,
     )
     if args.output == "json":
         print(report.model_dump_json(indent=2))

@@ -34,6 +34,7 @@ python main.py "How should I bootstrap a supervisor-worker system?" \
 ```
 
 By default the Ollama client calls `http://localhost:11434`.
+By default the Ollama runner uses `--max-retries 1 --retry-backoff-seconds 0.25` for model-layer retries only.
 
 ## Output Modes
 
@@ -57,6 +58,20 @@ python -m orchestrator.acceptance --runner fake --audit-dir artifacts/runs
 ```
 
 Each record contains run metadata, traces, final structured output, and failure details when a run crashes.
+
+## Model Retry
+
+The Ollama runner can retry model calls or JSON-parse failures without replaying the whole workflow:
+
+```bash
+python main.py "How should I bootstrap a supervisor-worker system?" \
+  --runner ollama \
+  --model qwen2.5:14b \
+  --max-retries 2 \
+  --retry-backoff-seconds 0.5
+```
+
+This retry logic is limited to the model layer. It does not replay completed workflow steps.
 
 ## Acceptance Run
 

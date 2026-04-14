@@ -40,6 +40,18 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional directory where one JSON audit record will be written per run.",
     )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=1,
+        help="Maximum number of model-layer retries for the Ollama runner.",
+    )
+    parser.add_argument(
+        "--retry-backoff-seconds",
+        type=float,
+        default=0.25,
+        help="Base backoff delay between Ollama retries.",
+    )
     return parser.parse_args()
 
 
@@ -51,6 +63,8 @@ def main() -> None:
         base_url=args.base_url,
         enable_review=args.with_review,
         audit_dir=args.audit_dir,
+        max_retries=args.max_retries,
+        retry_backoff_seconds=args.retry_backoff_seconds,
     )
     result = supervisor.run(args.question)
     if args.output == "json":

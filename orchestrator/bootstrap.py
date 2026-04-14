@@ -8,6 +8,7 @@ from orchestrator.router import TaskRouter
 from orchestrator.supervisor import Supervisor
 from schemas.result_schema import WorkflowResult
 from tools.audit import AuditLogger
+from tools.retry import RetryPolicy
 from workers.research_worker import ResearchWorker
 from workers.review_worker import ReviewWorker
 from workers.writer_worker import WriterWorker
@@ -20,6 +21,8 @@ def build_supervisor(
     base_url: str = "http://localhost:11434",
     enable_review: bool = False,
     audit_dir: str | None = None,
+    max_retries: int = 1,
+    retry_backoff_seconds: float = 0.25,
 ) -> Supervisor:
     if runner_name == "fake":
         runner = FakeModelRunner()
@@ -27,6 +30,10 @@ def build_supervisor(
         runner = OllamaModelRunner(
             model=model,
             client=OllamaClient(base_url=base_url),
+            retry_policy=RetryPolicy(
+                max_retries=max_retries,
+                backoff_seconds=retry_backoff_seconds,
+            ),
         )
     else:
         raise ValueError(f"Unsupported runner: {runner_name}")
@@ -45,6 +52,8 @@ def build_supervisor(
                 "runner": runner_name,
                 "model": None if runner_name == "fake" else model,
                 "review_enabled": enable_review,
+                "max_retries": max_retries,
+                "retry_backoff_seconds": retry_backoff_seconds,
             },
         )
     return Supervisor(

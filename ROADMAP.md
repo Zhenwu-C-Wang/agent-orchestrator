@@ -19,6 +19,7 @@ Build a supervisor-driven workflow that takes one user question, delegates it to
 - One local-model adapter for Ollama
 - One deterministic fake runner for tests and demos
 - One optional JSON audit logger for run persistence
+- One model-layer retry policy for Ollama calls and JSON parsing
 - CLI entrypoint for local execution
 
 ### Out Of Scope For This Milestone
@@ -26,7 +27,7 @@ Build a supervisor-driven workflow that takes one user question, delegates it to
 - Parallel task execution
 - Dynamic tool selection
 - Review or audit workers
-- Caching and retries
+- Caching and workflow-level retries
 - Human approval nodes
 - Streaming responses
 - External search, RAG, SQL, code execution
@@ -79,6 +80,7 @@ These choices are intentionally fixed so implementation can start immediately.
 - `OllamaClient`
 - `OllamaModelRunner`
 - `AuditLogger`
+- `RetryPolicy`
 - `ResearchWorker`
 - `WriterWorker`
 - `ReviewWorker` behind a feature flag
@@ -93,6 +95,7 @@ The MVP is done only when all of the following are true:
 - Each worker validates input and output against explicit schemas.
 - A local Ollama runner exists behind the same `ModelRunner` interface.
 - Audit logging can persist a run as one JSON artifact when requested.
+- The Ollama runner can retry model invocation or JSON parsing failures without replaying the whole workflow.
 - Automated tests cover the fixed workflow and CLI JSON output.
 
 ## 5. Executable Work Breakdown
@@ -135,12 +138,14 @@ Deliverables:
 - `OllamaModelRunner`
 - prompt templates for both workers
 - optional JSON audit persistence
+- model-layer retry policy
 
 Acceptance:
 
 - The same workflow can be executed with `--runner ollama --model <model-name>`.
 - Local-model calls are isolated behind the `ModelRunner` contract.
 - Audit artifacts can be written without changing worker logic.
+- Retry logic is isolated to model execution and parse recovery.
 
 ### M3: Verification Baseline
 
@@ -169,8 +174,9 @@ These are the first engineering tasks to create as issues or work items.
 7. Implement `TaskRouter`, `TaskManager`, and `Supervisor`.
 8. Add `main.py` and JSON/pretty output modes.
 9. Add optional JSON audit logging.
-10. Add tests for workflow, CLI, audit persistence, and JSON extraction.
-11. Add architecture and usage documentation.
+10. Add model-layer retries for Ollama execution and parse recovery.
+11. Add tests for workflow, CLI, audit persistence, retry behavior, and JSON extraction.
+12. Add architecture and usage documentation.
 
 ## 7. File Layout For This Milestone
 
@@ -194,7 +200,8 @@ These are the first engineering tasks to create as issues or work items.
 │   ├── task_schema.py
 │   └── worker_schema.py
 ├── tools/
-│   └── audit.py
+│   ├── audit.py
+│   └── retry.py
 ├── tests/
 │   ├── test_audit_logging.py
 │   ├── test_cli.py
@@ -233,7 +240,7 @@ The pass condition is not “the wording looks nice.” The pass condition is:
 
 Only after the MVP above is stable should the project add:
 
-- retry policy
+- workflow-level retry policy
 - caching
 - status query APIs
 - parallel branches

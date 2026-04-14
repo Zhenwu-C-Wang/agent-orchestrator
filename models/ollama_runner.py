@@ -3,8 +3,11 @@ from __future__ import annotations
 import json
 import re
 
+from pydantic import ValidationError
+
 from models.model_runner import ModelRequest, StructuredModelRunner, StructuredModelT
 from models.ollama_client import OllamaClient
+from tools.retry import RetryPolicy
 
 JSON_FENCE_RE = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL)
 JSON_OBJECT_RE = re.compile(r"(\{.*\})", re.DOTALL)
@@ -33,10 +36,12 @@ class OllamaModelRunner(StructuredModelRunner):
         model: str,
         client: OllamaClient | None = None,
         temperature: float = 0.1,
+        retry_policy: RetryPolicy | None = None,
     ) -> None:
         self.model = model
         self.client = client or OllamaClient()
         self.temperature = temperature
+        self.retry_policy = retry_policy or RetryPolicy()
 
     def generate_structured(
         self,
@@ -49,11 +54,25 @@ class OllamaModelRunner(StructuredModelRunner):
             "Return only one JSON object and do not wrap it in markdown.\n"
             f"JSON schema: {schema_json}"
         )
-        raw_text = self.client.generate(
-            model=self.model,
-            prompt=prompt,
-            system=request.system_prompt,
-            options={"temperature": self.temperature},
-        )
-        payload = extract_json_payload(raw_text)
-        return response_model.model_validate_json(payload)
+        last_error: Exception | None = None
+
+        for attempt_number in range(1, self.retry_policy.max_attempts + 1):
+            try:
+                raw_text = self.client.generate(
+                    model=self.model,
+                    prompt=prompt,
+                    system=request.system_prompt,
+                    options={"temperature": self.temperature},
+                )
+                payload = extract_json_payload(raw_text)
+                return response_model.model_validate_json(payload)
+            except (RuntimeError, json.JSONDecodeError, ValidationError) as exc:
+                last_error = exc
+                if attempt_number >= self.retry_policy.max_attempts:
+                    break
+                self.retry_policy.sleep_before_retry(attempt_number)
+
+        raise RuntimeError(
+            f"Ollama structured generation failed after {self.retry_policy.max_attempts} attempts: "
+            f"{last_error}"
+        ) from last_error

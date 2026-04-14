@@ -13,6 +13,7 @@ This repository implements one narrow orchestration contract on purpose.
 - `PromptManager` owns prompt wording and prompt payload construction.
 - `ModelRunner` implementations own model invocation and structured parsing.
 - `AuditLogger` owns JSON persistence for completed or failed workflow runs.
+- `RetryPolicy` owns model-layer retry behavior and backoff configuration.
 
 ## Why The Workflow Is Fixed
 
@@ -31,6 +32,10 @@ The review stage adds useful signal, but it also adds latency and another struct
 
 Audit persistence is useful for debugging local-model behavior and preserving traces from real runs, but it should not be forced on every invocation. Making it opt-in keeps the default workflow clean while preserving a stable path for investigation.
 
+## Why Retries Are Limited To The Model Layer
+
+Retrying the whole workflow would create duplicated worker executions and make trace reasoning harder. The current system only retries the Ollama invocation and structured parsing step, which improves resilience without changing orchestration semantics.
+
 ## What Is Deliberately Missing
 
 - retries
@@ -38,5 +43,7 @@ Audit persistence is useful for debugging local-model behavior and preserving tr
 - streaming
 - human approval
 - persistence
+
+In this list, "retries" now specifically means workflow-level retry and recovery policies. Lightweight model-layer retries are already implemented.
 
 Those features are useful only after the base contract is stable.
