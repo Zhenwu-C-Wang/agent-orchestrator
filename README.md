@@ -52,6 +52,7 @@ The CLIs use normalized non-zero exit codes for automation:
 - `7`: audit query error
 - `8`: acceptance run finished with failed cases
 - `9`: cache query or cache management error
+- `10`: acceptance report query error
 
 ## Audit Logs
 
@@ -171,6 +172,27 @@ python -m orchestrator.acceptance --runner ollama --model qwen2.5:14b
 
 Use `--output json` if you want the full structured report.
 Add `--with-review` to validate the optional three-stage workflow.
+Add `--report-dir artifacts/acceptance` if you want one persisted acceptance record per run.
+
+## Acceptance Report Query
+
+List recent acceptance runs:
+
+```bash
+python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance list
+```
+
+Show one acceptance run in detail:
+
+```bash
+python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance show <run_id>
+```
+
+Show the latest acceptance run:
+
+```bash
+python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance latest
+```
 
 ## Project Layout
 

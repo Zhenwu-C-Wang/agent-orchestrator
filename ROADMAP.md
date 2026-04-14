@@ -20,6 +20,8 @@ Build a supervisor-driven workflow that takes one user question, delegates it to
 - One deterministic fake runner for tests and demos
 - One optional JSON audit logger for run persistence
 - One read-only local run status query over audit artifacts
+- One optional acceptance report logger for validation persistence
+- One read-only acceptance report query over local JSON artifacts
 - One model-layer retry policy for Ollama calls and JSON parsing
 - One optional request-level structured result cache
 - One optional TTL-based cache expiry policy
@@ -104,6 +106,7 @@ The MVP is done only when all of the following are true:
 - A local Ollama runner exists behind the same `ModelRunner` interface.
 - Audit logging can persist a run as one JSON artifact when requested.
 - Local runs can be listed and inspected through a read-only audit query CLI.
+- Acceptance runs can optionally persist one report artifact and query it later.
 - The Ollama runner can retry model invocation or JSON parsing failures without replaying the whole workflow.
 - Exact repeated requests can reuse cached structured results when cache is enabled.
 - Cache TTL can expire older entries when configured.
@@ -153,6 +156,8 @@ Deliverables:
 - prompt templates for both workers
 - optional JSON audit persistence
 - read-only audit query CLI
+- optional acceptance report persistence
+- read-only acceptance report query CLI
 - model-layer retry policy
 - request-level structured result cache
 - TTL-based cache expiry and local cache management CLI
@@ -164,6 +169,7 @@ Acceptance:
 - Local-model calls are isolated behind the `ModelRunner` contract.
 - Audit artifacts can be written without changing worker logic.
 - Run inspection reads persisted artifacts instead of requiring a live process registry.
+- Acceptance history is preserved separately from per-question workflow audit records.
 - Retry logic is isolated to model execution and parse recovery.
 - Cache reuse is isolated to exact request matches and does not affect workflow order.
 - Cache expiry remains local, opt-in, and request-level.
@@ -197,12 +203,13 @@ These are the first engineering tasks to create as issues or work items.
 8. Add `main.py` and JSON/pretty output modes.
 9. Add optional JSON audit logging.
 10. Add read-only run status query over persisted audit artifacts.
-11. Add model-layer retries for Ollama execution and parse recovery.
-12. Add request-level structured result caching.
-13. Add TTL-based cache expiry and a local cache management CLI.
-14. Add normalized CLI failure classification and exit codes.
-15. Add tests for workflow, CLI, audit persistence, status query, retry behavior, caching, cache expiry, cache management, exit codes, and JSON extraction.
-16. Add architecture and usage documentation.
+11. Add optional acceptance report persistence and read-only acceptance query.
+12. Add model-layer retries for Ollama execution and parse recovery.
+13. Add request-level structured result caching.
+14. Add TTL-based cache expiry and a local cache management CLI.
+15. Add normalized CLI failure classification and exit codes.
+16. Add tests for workflow, CLI, audit persistence, acceptance persistence, status query, retry behavior, caching, cache expiry, cache management, exit codes, and JSON extraction.
+17. Add architecture and usage documentation.
 
 ## 7. File Layout For This Milestone
 
@@ -219,22 +226,28 @@ These are the first engineering tasks to create as issues or work items.
 │   └── prompt_manager.py
 ├── orchestrator/
 │   ├── cache.py
+│   ├── acceptance.py
+│   ├── acceptance_runs.py
 │   ├── runs.py
 │   ├── router.py
 │   ├── supervisor.py
 │   └── task_manager.py
 ├── schemas/
+│   ├── acceptance_schema.py
 │   ├── audit_schema.py
 │   ├── cache_schema.py
 │   ├── result_schema.py
 │   ├── task_schema.py
 │   └── worker_schema.py
 ├── tools/
+│   ├── acceptance.py
 │   ├── audit.py
 │   ├── cache.py
 │   ├── errors.py
 │   └── retry.py
 ├── tests/
+│   ├── test_acceptance.py
+│   ├── test_acceptance_query.py
 │   ├── test_audit_logging.py
 │   ├── test_cache.py
 │   ├── test_cache_query.py

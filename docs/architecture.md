@@ -14,6 +14,8 @@ This repository implements one narrow orchestration contract on purpose.
 - `ModelRunner` implementations own model invocation and structured parsing.
 - `AuditLogger` owns JSON persistence for completed or failed workflow runs.
 - `AuditStore` owns read-only inspection of persisted workflow runs.
+- `AcceptanceLogger` owns JSON persistence for completed acceptance reports.
+- `AcceptanceStore` owns read-only inspection of persisted acceptance reports.
 - `RetryPolicy` owns model-layer retry behavior and backoff configuration.
 - `StructuredResultCache` owns exact request-level structured result reuse and opt-in TTL expiry.
 - `orchestrator.cache` owns local cache inspection and maintenance commands.
@@ -39,6 +41,10 @@ Audit persistence is useful for debugging local-model behavior and preserving tr
 ## Why Status Query Reads Audit Artifacts
 
 The current status layer is intentionally read-only. It reads persisted audit JSON files instead of introducing a database, daemon, or mutable runtime registry. That keeps the implementation simple and aligned with the local-first workflow.
+
+## Why Acceptance Reports Persist Separately
+
+Acceptance runs answer a different question than workflow audit artifacts. Audit records preserve one workflow execution at a time, while acceptance records preserve one validation session across the fixed question set. Keeping them separate avoids mixing per-question traces with higher-level pass/fail history.
 
 ## Why Exit Codes Are Normalized
 

@@ -3,10 +3,10 @@ from __future__ import annotations
 import argparse
 from time import perf_counter
 
-from pydantic import BaseModel, Field
-
 from orchestrator.bootstrap import build_supervisor
+from schemas.acceptance_schema import AcceptanceCaseResult, AcceptanceReport
 from schemas.result_schema import WorkflowResult
+from tools.acceptance import AcceptanceLogger
 from tools.errors import AcceptanceFailedError, run_cli
 
 ACCEPTANCE_QUESTIONS = [
@@ -16,27 +16,6 @@ ACCEPTANCE_QUESTIONS = [
     "What risks appear when a supervisor directly writes the final answer?",
     "When should I add retry, cache, and audit layers to this system?",
 ]
-
-
-class AcceptanceCaseResult(BaseModel):
-    question: str
-    passed: bool
-    duration_ms: int
-    errors: list[str] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
-    trace_order: list[str] = Field(default_factory=list)
-    result: WorkflowResult | None = None
-
-
-class AcceptanceReport(BaseModel):
-    runner: str
-    model: str | None = None
-    enable_review: bool = False
-    total_cases: int
-    passed_cases: int
-    failed_cases: int
-    case_results: list[AcceptanceCaseResult] = Field(default_factory=list)
-
 
 def _has_content(value: str) -> bool:
     return bool(value and value.strip())
@@ -217,6 +196,11 @@ def parse_args() -> argparse.Namespace:
         default=0.25,
         help="Base backoff delay between Ollama retries.",
     )
+    parser.add_argument(
+        "--report-dir",
+        default=None,
+        help="Optional directory where one JSON acceptance report record will be written per run.",
+    )
     return parser.parse_args()
 
 
@@ -233,6 +217,20 @@ def _main() -> None:
         max_retries=args.max_retries,
         retry_backoff_seconds=args.retry_backoff_seconds,
     )
+    if args.report_dir:
+        AcceptanceLogger(
+            args.report_dir,
+            metadata={
+                "runner": args.runner,
+                "model": None if args.runner == "fake" else args.model,
+                "review_enabled": args.with_review,
+                "audit_dir": args.audit_dir,
+                "cache_dir": args.cache_dir,
+                "cache_max_age_seconds": args.cache_max_age_seconds,
+                "max_retries": args.max_retries,
+                "retry_backoff_seconds": args.retry_backoff_seconds,
+            },
+        ).record_report(report)
     if args.output == "json":
         print(report.model_dump_json(indent=2))
     else:

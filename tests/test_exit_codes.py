@@ -116,3 +116,23 @@ def test_cache_cli_returns_cache_query_exit_code_when_prune_lacks_ttl(tmp_path) 
 
     assert completed.returncode == 9
     assert "cache-query-error:" in completed.stderr
+
+
+def test_acceptance_runs_cli_returns_acceptance_query_exit_code_for_missing_run(tmp_path) -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orchestrator.acceptance_runs",
+            "--report-dir",
+            str(tmp_path),
+            "show",
+            "missing-run-id",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 10
+    assert "acceptance-query-error:" in completed.stderr
