@@ -99,6 +99,7 @@ The MVP is done only when all of the following are true:
 - Audit logging can persist a run as one JSON artifact when requested.
 - The Ollama runner can retry model invocation or JSON parsing failures without replaying the whole workflow.
 - Exact repeated requests can reuse cached structured results when cache is enabled.
+- Cache hit or miss is visible in task-level trace metadata and audit artifacts.
 - Automated tests cover the fixed workflow and CLI JSON output.
 
 ## 5. Executable Work Breakdown

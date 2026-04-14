@@ -42,8 +42,9 @@ class Supervisor:
 
             started_at = perf_counter()
             caught_exc: Exception | None = None
+            trace_metadata: dict[str, object] = {}
+            worker = self.workers[step.worker_name]
             try:
-                worker = self.workers[step.worker_name]
                 result = worker.run(task)
                 error = None
                 status = "completed"
@@ -53,6 +54,8 @@ class Supervisor:
                 status = "failed"
                 caught_exc = exc
             finally:
+                if hasattr(worker, "consume_last_run_metadata"):
+                    trace_metadata = worker.consume_last_run_metadata()
                 duration_ms = int((perf_counter() - started_at) * 1000)
                 traces.append(
                     TaskTrace(
@@ -63,6 +66,7 @@ class Supervisor:
                         duration_ms=duration_ms,
                         output_schema=step.output_schema,
                         error=error,
+                        metadata=trace_metadata,
                     )
                 )
 

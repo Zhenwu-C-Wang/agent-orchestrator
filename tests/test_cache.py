@@ -43,12 +43,18 @@ def test_cached_runner_hits_cache_for_repeated_request(tmp_path) -> None:
     )
 
     first = runner.generate_structured(_request(), ResearchResult)
+    first_metadata = runner.get_last_invocation_metadata()
     second = runner.generate_structured(_request(), ResearchResult)
+    second_metadata = runner.get_last_invocation_metadata()
 
     assert first.summary == "first"
     assert second.summary == "first"
     assert inner.calls == 1
     assert len(list(tmp_path.glob("*.json"))) == 1
+    assert first_metadata["cache_hit"] is False
+    assert second_metadata["cache_hit"] is True
+    assert first_metadata["cache_key"] == second_metadata["cache_key"]
+    assert second_metadata["attempt_count"] == 0
 
 
 def test_cached_runner_reuses_disk_cache_across_instances(tmp_path) -> None:
@@ -96,3 +102,21 @@ def test_cached_runner_misses_when_namespace_changes(tmp_path) -> None:
     assert first_inner.calls == 1
     assert second_inner.calls == 1
     assert len(list(tmp_path.glob("*.json"))) == 2
+
+
+def test_supervisor_traces_expose_cache_hit_metadata(tmp_path) -> None:
+    from main import build_supervisor
+
+    supervisor = build_supervisor(
+        runner_name="fake",
+        enable_review=True,
+        cache_dir=str(tmp_path),
+    )
+
+    first_result = supervisor.run("How should I bootstrap a supervisor-worker system?")
+    second_result = supervisor.run("How should I bootstrap a supervisor-worker system?")
+
+    assert all(trace.metadata["cache_enabled"] is True for trace in first_result.traces)
+    assert all(trace.metadata["cache_hit"] is False for trace in first_result.traces)
+    assert all("cache_key" in trace.metadata for trace in first_result.traces)
+    assert all(trace.metadata["cache_hit"] is True for trace in second_result.traces)

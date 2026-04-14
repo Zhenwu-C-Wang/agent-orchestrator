@@ -7,12 +7,23 @@ from schemas.result_schema import FinalAnswer, ResearchResult, ReviewResult
 class FakeModelRunner(StructuredModelRunner):
     """Deterministic runner used for tests and demos."""
 
+    def __init__(self) -> None:
+        self._last_invocation_metadata: dict[str, object] = {}
+
     def generate_structured(
         self,
         request: ModelRequest,
         response_model: type[StructuredModelT],
     ) -> StructuredModelT:
         question = str(request.payload.get("question", "")).strip()
+        self._last_invocation_metadata = {
+            "runner": "fake",
+            "model": None,
+            "cache_enabled": False,
+            "cache_hit": False,
+            "attempt_count": 1,
+            "retry_count": 0,
+        }
 
         if response_model is ResearchResult:
             payload = {
@@ -63,3 +74,6 @@ class FakeModelRunner(StructuredModelRunner):
             return response_model.model_validate(payload)
 
         raise ValueError(f"Unsupported response model for fake runner: {response_model.__name__}")
+
+    def get_last_invocation_metadata(self) -> dict[str, object]:
+        return dict(self._last_invocation_metadata)

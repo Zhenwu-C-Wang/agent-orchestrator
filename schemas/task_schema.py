@@ -34,3 +34,4 @@ class TaskTrace(BaseModel):
     duration_ms: int
     output_schema: str
     error: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)

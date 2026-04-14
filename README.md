@@ -85,6 +85,7 @@ python main.py "How should I bootstrap a supervisor-worker system?" \
 ```
 
 This cache is request-level and local-disk only. It does not implement TTL, eviction, or cross-version invalidation.
+When caching is enabled, each `TaskTrace` also carries `cache_hit`, `cache_key`, and related metadata, and the same fields are preserved in audit records.
 
 ## Acceptance Run
 

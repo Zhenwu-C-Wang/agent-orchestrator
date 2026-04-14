@@ -79,3 +79,6 @@ class StructuredResultCache:
 
     def _path_for(self, cache_key: str) -> Path:
         return self.directory / f"{cache_key}.json"
+
+    def path_for(self, cache_key: str) -> Path:
+        return self._path_for(cache_key)

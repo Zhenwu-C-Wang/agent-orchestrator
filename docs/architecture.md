@@ -41,6 +41,10 @@ Retrying the whole workflow would create duplicated worker executions and make t
 
 The current cache is intentionally narrow. It reuses exact structured results for identical requests, but it does not try to solve invalidation, staleness, or cross-version compatibility. That keeps the implementation predictable while still reducing repeated local-model work.
 
+## Why Cache Observability Lives In Task Traces
+
+Cache behavior affects each worker step, not just the overall run. Surfacing `cache_hit`, `cache_key`, and attempt metadata on `TaskTrace` keeps the signal close to the execution step that used it and automatically carries the same information into audit records.
+
 ## What Is Deliberately Missing
 
 - retries

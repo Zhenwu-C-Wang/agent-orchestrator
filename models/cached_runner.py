@@ -19,6 +19,7 @@ class CachedModelRunner(StructuredModelRunner):
         self.runner = runner
         self.cache = cache
         self.namespace = dict(namespace)
+        self._last_invocation_metadata: dict[str, object] = {}
 
     def generate_structured(
         self,
@@ -32,9 +33,32 @@ class CachedModelRunner(StructuredModelRunner):
         )
         cached = self.cache.get(cache_key=cache_key, response_model=response_model)
         if cached is not None:
+            self._last_invocation_metadata = {
+                "runner": self.namespace.get("runner"),
+                "model": self.namespace.get("model"),
+                "cache_enabled": True,
+                "cache_hit": True,
+                "cache_key": cache_key,
+                "cache_path": str(self.cache.path_for(cache_key)),
+                "attempt_count": 0,
+                "retry_count": 0,
+            }
             return cached
 
-        result = self.runner.generate_structured(request, response_model)
+        try:
+            result = self.runner.generate_structured(request, response_model)
+        except Exception:
+            self._last_invocation_metadata = {
+                **self._inner_metadata(),
+                "runner": self.namespace.get("runner"),
+                "model": self.namespace.get("model"),
+                "cache_enabled": True,
+                "cache_hit": False,
+                "cache_key": cache_key,
+                "cache_path": str(self.cache.path_for(cache_key)),
+            }
+            raise
+
         self.cache.set(
             cache_key=cache_key,
             metadata={
@@ -44,4 +68,23 @@ class CachedModelRunner(StructuredModelRunner):
             },
             response=result,
         )
+        self._last_invocation_metadata = {
+            **self._inner_metadata(),
+            "runner": self.namespace.get("runner"),
+            "model": self.namespace.get("model"),
+            "cache_enabled": True,
+            "cache_hit": False,
+            "cache_key": cache_key,
+            "cache_path": str(self.cache.path_for(cache_key)),
+        }
         return result
+
+    def get_last_invocation_metadata(self) -> dict[str, object]:
+        return dict(self._last_invocation_metadata)
+
+    def _inner_metadata(self) -> dict[str, object]:
+        getter = getattr(self.runner, "get_last_invocation_metadata", None)
+        if not callable(getter):
+            return {}
+        metadata = getter()
+        return dict(metadata) if isinstance(metadata, dict) else {}

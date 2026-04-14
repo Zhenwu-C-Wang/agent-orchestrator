@@ -42,6 +42,7 @@ class OllamaModelRunner(StructuredModelRunner):
         self.client = client or OllamaClient()
         self.temperature = temperature
         self.retry_policy = retry_policy or RetryPolicy()
+        self._last_invocation_metadata: dict[str, object] = {}
 
     def generate_structured(
         self,
@@ -65,9 +66,26 @@ class OllamaModelRunner(StructuredModelRunner):
                     options={"temperature": self.temperature},
                 )
                 payload = extract_json_payload(raw_text)
-                return response_model.model_validate_json(payload)
+                result = response_model.model_validate_json(payload)
+                self._last_invocation_metadata = {
+                    "runner": "ollama",
+                    "model": self.model,
+                    "cache_enabled": False,
+                    "cache_hit": False,
+                    "attempt_count": attempt_number,
+                    "retry_count": attempt_number - 1,
+                }
+                return result
             except (RuntimeError, json.JSONDecodeError, ValidationError) as exc:
                 last_error = exc
+                self._last_invocation_metadata = {
+                    "runner": "ollama",
+                    "model": self.model,
+                    "cache_enabled": False,
+                    "cache_hit": False,
+                    "attempt_count": attempt_number,
+                    "retry_count": attempt_number - 1,
+                }
                 if attempt_number >= self.retry_policy.max_attempts:
                     break
                 self.retry_policy.sleep_before_retry(attempt_number)
@@ -76,3 +94,6 @@ class OllamaModelRunner(StructuredModelRunner):
             f"Ollama structured generation failed after {self.retry_policy.max_attempts} attempts: "
             f"{last_error}"
         ) from last_error
+
+    def get_last_invocation_metadata(self) -> dict[str, object]:
+        return dict(self._last_invocation_metadata)

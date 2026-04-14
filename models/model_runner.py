@@ -21,3 +21,6 @@ class StructuredModelRunner(Protocol):
         response_model: type[StructuredModelT],
     ) -> StructuredModelT:
         ...
+
+    def get_last_invocation_metadata(self) -> dict[str, Any]:
+        ...
