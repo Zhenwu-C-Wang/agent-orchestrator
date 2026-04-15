@@ -148,7 +148,7 @@ streamlit run app.py
 The UI is useful when you want to:
 
 - type questions interactively
-- preview the selected workflow plan before execution
-- inspect tool invocations and traces after execution
+- preview the selected workflow plan before execution, including route warnings and guidance
+- inspect overview, intermediates, tools, traces, and exports in separate guided tabs after execution
 - export JSON, Markdown, or text summaries
-- review recent persisted runs if an audit directory is configured
+- review recent persisted runs with the same inspection summary if an audit directory is configured

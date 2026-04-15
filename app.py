@@ -8,6 +8,7 @@ from pathlib import Path
 import streamlit as st
 
 from orchestrator.bootstrap import build_supervisor, format_markdown, format_pretty
+from orchestrator.inspection import build_plan_guidance, build_result_overview
 from orchestrator.planner import TaskPlanner
 from orchestrator.project_status import load_project_status
 from schemas.result_schema import WorkflowResult
@@ -38,6 +39,15 @@ def _parse_context_urls(raw_value: str) -> list[str]:
     return [line.strip() for line in raw_value.splitlines() if line.strip()]
 
 
+def _render_metrics(metrics: list[object]) -> None:
+    if not metrics:
+        return
+
+    columns = st.columns(len(metrics))
+    for column, metric in zip(columns, metrics):
+        column.metric(metric.label, metric.value)
+
+
 def _render_plan_preview(
     question: str,
     enable_review: bool,
@@ -56,16 +66,23 @@ def _render_plan_preview(
         context_files=context_files,
         context_urls=context_urls,
     )
+    guidance = build_plan_guidance(plan, question=question)
 
     st.subheader("Workflow Plan")
     st.caption(plan.rationale)
+    st.markdown(f"**{guidance.headline}**")
+    st.caption(guidance.summary)
+    _render_metrics(guidance.metrics)
+    if guidance.warnings:
+        st.markdown("**Attention**")
+        for warning in guidance.warnings:
+            st.warning(warning)
+    if guidance.guidance:
+        st.markdown("**Guidance**")
+        for item in guidance.guidance:
+            st.write(f"- {item}")
     st.markdown(f"**Selected workflow:** `{plan.workflow_name}`")
-    if context_files:
-        st.write(f"Context files: `{len(context_files)}` attached")
-    if context_urls:
-        st.write(f"Context URLs: `{len(context_urls)}` attached")
-    for index, step in enumerate(plan.steps, start=1):
-        st.write(f"{index}. `{step.worker_name}` -> `{step.output_schema}`")
+    st.dataframe(guidance.step_rows, use_container_width=True, hide_index=True)
 
 
 def _render_intermediate_result(result: WorkflowResult) -> None:
@@ -80,7 +97,6 @@ def _render_intermediate_result(result: WorkflowResult) -> None:
             st.markdown("**Caveats**")
             for caveat in result.research.caveats:
                 st.write(f"- {caveat}")
-        return
 
     if result.analysis is not None:
         st.subheader("Analysis")
@@ -97,6 +113,22 @@ def _render_intermediate_result(result: WorkflowResult) -> None:
             st.markdown("**Caveats**")
             for caveat in result.analysis.caveats:
                 st.write(f"- {caveat}")
+
+
+def _render_result_overview(result: WorkflowResult) -> None:
+    overview = build_result_overview(result)
+    st.subheader("Inspection Overview")
+    st.markdown(f"**{overview.headline}**")
+    st.caption(overview.summary)
+    _render_metrics(overview.metrics)
+    if overview.highlights:
+        st.markdown("**Highlights**")
+        for item in overview.highlights:
+            st.write(f"- {item}")
+    if overview.next_actions:
+        st.markdown("**Next Actions**")
+        for item in overview.next_actions:
+            st.write(f"- {item}")
 
 
 def _render_traces(result: WorkflowResult) -> None:
@@ -152,6 +184,8 @@ def _render_outputs(result: WorkflowResult) -> None:
         for limitation in result.final_answer.limitations:
             st.write(f"- {limitation}")
 
+
+def _render_review(result: WorkflowResult) -> None:
     if result.review is not None:
         st.subheader("Review")
         st.write(result.review.verdict)
@@ -243,8 +277,19 @@ def _render_recent_runs(audit_dir: str) -> None:
         st.write(f"Created at: `{selected.created_at}`")
         st.write(f"Question: {selected.question}")
         if selected.result is not None:
+            overview = build_result_overview(selected.result)
+            st.markdown(f"**{overview.headline}**")
+            st.caption(overview.summary)
+            _render_metrics(overview.metrics)
+            if overview.highlights:
+                st.markdown("**Highlights**")
+                for item in overview.highlights:
+                    st.write(f"- {item}")
+            if overview.next_actions:
+                st.markdown("**Next Actions**")
+                for item in overview.next_actions:
+                    st.write(f"- {item}")
             st.write(f"Workflow: `{selected.result.workflow_plan.workflow_name}`")
-            st.write(f"Tool invocations: `{len(selected.result.tool_invocations)}`")
             st.write(selected.result.final_answer.answer)
         if selected.error:
             st.error(selected.error)
@@ -371,13 +416,29 @@ def main() -> None:
         result = last_result
         st.divider()
         st.success("Workflow completed.")
-        _render_intermediate_result(result)
-        _render_outputs(result)
-        _render_tool_invocations(result)
-        _render_traces(result)
-        _render_downloads(result)
-
-        with st.expander("Raw JSON"):
+        overview_tab, intermediate_tab, tools_tab, traces_tab, export_tab, raw_tab = st.tabs(
+            [
+                "Overview",
+                "Intermediates",
+                "Tools",
+                "Traces",
+                "Export",
+                "Raw JSON",
+            ]
+        )
+        with overview_tab:
+            _render_result_overview(result)
+            _render_outputs(result)
+        with intermediate_tab:
+            _render_intermediate_result(result)
+            _render_review(result)
+        with tools_tab:
+            _render_tool_invocations(result)
+        with traces_tab:
+            _render_traces(result)
+        with export_tab:
+            _render_downloads(result)
+        with raw_tab:
             st.json(result.model_dump())
 
     st.divider()
