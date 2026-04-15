@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from time import perf_counter
 
+from orchestrator.planner import TaskPlanner
 from orchestrator.router import TaskRouter
 from orchestrator.task_manager import TaskManager
-from schemas.result_schema import FinalAnswer, ResearchResult, ReviewResult, WorkflowResult
+from schemas.result_schema import AnalysisResult, FinalAnswer, ResearchResult, ReviewResult, WorkflowResult
 from schemas.task_schema import TaskTrace, TaskType
 from tools.audit import AuditLogger
 
@@ -15,11 +16,13 @@ class Supervisor:
     def __init__(
         self,
         workers: dict[str, object],
+        planner: TaskPlanner | None = None,
         router: TaskRouter | None = None,
         task_manager: TaskManager | None = None,
         audit_logger: AuditLogger | None = None,
     ) -> None:
         self.workers = workers
+        self.planner = planner or TaskPlanner()
         self.router = router or TaskRouter()
         self.task_manager = task_manager or TaskManager()
         self.audit_logger = audit_logger
@@ -27,11 +30,13 @@ class Supervisor:
     def run(self, question: str) -> WorkflowResult:
         context: dict[str, object] = {}
         traces: list[TaskTrace] = []
+        workflow_plan = self.planner.build_plan(question)
         research_result: ResearchResult | None = None
+        analysis_result: AnalysisResult | None = None
         final_answer: FinalAnswer | None = None
         review_result: ReviewResult | None = None
 
-        for step in self.router.plan(question):
+        for step in self.router.plan(workflow_plan):
             task_input = self.router.build_task_input(step, question, context)
             task = self.task_manager.create_task(
                 task_type=step.task_type,
@@ -82,6 +87,9 @@ class Supervisor:
             if step.task_type is TaskType.RESEARCH:
                 research_result = result
                 context["research"] = result
+            elif step.task_type is TaskType.ANALYSIS:
+                analysis_result = result
+                context["analysis"] = result
             elif step.task_type is TaskType.WRITING:
                 final_answer = result
                 context["final_answer"] = result
@@ -89,12 +97,16 @@ class Supervisor:
                 review_result = result
                 context["review"] = result
 
-        if research_result is None or final_answer is None:
-            raise RuntimeError("Workflow did not produce both research and final answer outputs.")
+        if final_answer is None:
+            raise RuntimeError("Workflow did not produce a final answer output.")
+        if research_result is None and analysis_result is None:
+            raise RuntimeError("Workflow did not produce an intermediate worker output.")
 
         workflow_result = WorkflowResult(
             question=question,
+            workflow_plan=workflow_plan,
             research=research_result,
+            analysis=analysis_result,
             final_answer=final_answer,
             review=review_result,
             traces=traces,

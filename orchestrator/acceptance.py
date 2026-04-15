@@ -15,6 +15,7 @@ ACCEPTANCE_QUESTIONS = [
     "How should I define worker schemas before adding more workers?",
     "What risks appear when a supervisor directly writes the final answer?",
     "When should I add retry, cache, and audit layers to this system?",
+    "Analyze a local CSV file and summarize the most important changes.",
 ]
 
 def _has_content(value: str) -> bool:
@@ -25,17 +26,28 @@ def evaluate_result(result: WorkflowResult, *, expect_review: bool) -> tuple[lis
     errors: list[str] = []
     warnings: list[str] = []
 
-    if not _has_content(result.research.summary):
-        errors.append("Research summary is empty.")
-    if not result.research.key_points:
-        errors.append("Research key_points are empty.")
+    intermediate_points: list[str] = []
+    if result.research is not None:
+        if not _has_content(result.research.summary):
+            errors.append("Research summary is empty.")
+        if not result.research.key_points:
+            errors.append("Research key_points are empty.")
+        intermediate_points = list(result.research.key_points)
+    elif result.analysis is not None:
+        if not _has_content(result.analysis.summary):
+            errors.append("Analysis summary is empty.")
+        if not result.analysis.findings:
+            errors.append("Analysis findings are empty.")
+        intermediate_points = list(result.analysis.findings)
+    else:
+        errors.append("No intermediate worker result was returned.")
     if not _has_content(result.final_answer.answer):
         errors.append("Final answer is empty.")
     if not result.final_answer.supporting_points:
         errors.append("Final answer supporting_points are empty.")
 
     trace_order = [trace.worker_name for trace in result.traces]
-    expected_order = ["research", "writer", "review"] if expect_review else ["research", "writer"]
+    expected_order = [step.worker_name for step in result.workflow_plan.steps]
     if trace_order != expected_order:
         errors.append(f"Unexpected trace order: {trace_order}")
     if any(trace.status != "completed" for trace in result.traces):
@@ -50,9 +62,9 @@ def evaluate_result(result: WorkflowResult, *, expect_review: bool) -> tuple[lis
         if not result.review.consistent and not result.review.issues:
             warnings.append("Review marked the answer inconsistent but did not provide issues.")
 
-    overlapping_points = set(result.research.key_points) & set(result.final_answer.supporting_points)
+    overlapping_points = set(intermediate_points) & set(result.final_answer.supporting_points)
     if not overlapping_points:
-        warnings.append("Writer output did not reuse any research key_points verbatim.")
+        warnings.append("Writer output did not reuse any intermediate worker points verbatim.")
 
     return errors, warnings
 

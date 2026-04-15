@@ -15,6 +15,17 @@ pytest
 python main.py "How should I bootstrap a supervisor-worker system?" --runner fake
 ```
 
+## Streamlit UI
+
+Run a minimal local UI that can accept input, preview the workflow plan, execute the orchestrator, and display traces plus outputs:
+
+```bash
+pip install -e '.[ui]'
+streamlit run app.py
+```
+
+The UI also reads `docs/project_status.json` for a lightweight milestone snapshot and will show recent persisted runs when an audit directory is configured.
+
 Enable the optional review stage:
 
 ```bash
@@ -198,6 +209,56 @@ Compare the latest acceptance run against the previous one:
 
 ```bash
 python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance compare
+```
+
+---
+
+## Vision: Multi-Functional AI Systems Framework
+
+This MVP provides the **orchestration foundation** for a comprehensive multi-agent system. The long-term vision extends this into a **multi-functional intelligent systems framework** supporting:
+
+### Current Capabilities ✅
+- **Fixed workflow orchestration**: Research → Writing → Review (optional)
+- **Multi-role system**: Specialized workers with distinct responsibilities
+- **Structured I/O schemas**: Type-safe task inputs and outputs via Pydantic
+- **Model flexibility**: Switch between fake runners and local Ollama models
+- **Audit & observability**: Full trace capture with task metadata and timing
+- **Caching & retries**: Request-level caching with TTL, model-layer retries
+- **Acceptance testing**: Regression detection across workflow runs
+
+### Planned Enhancements (Phases 2-4)
+
+#### Phase 2: Dynamic Workflows & Tool Integration
+- 🔹 **Adaptive routing**: Route questions to different worker chains based on intent
+- 🔹 **Tool management**: Integrate web scrapers, data analyzers, code executors, APIs
+- 🔹 **NLP decomposition**: Break complex tasks into sub-workflows automatically
+- 🔹 **Example use cases**:
+  - Technical questions → Research + Code Analysis + Testing
+  - Data questions → Fetch Data + Analyze + Visualize
+  - Multi-step workflows → Decompose → Execute in parallel → Synthesize
+
+#### Phase 3: Parallel Execution & Interactivity
+- 🔹 **Concurrent workers**: Execute multiple workers in parallel with DAG scheduling
+- 🔹 **Multi-agent collaboration**: Inter-worker communication and result aggregation
+- 🔹 **Human-in-the-loop**: Approval checkpoints and mid-execution feedback
+- 🔹 **Rich output formats**: Markdown reports, HTML dashboards, Jupyter notebooks, PDFs
+- 🔹 **IDE automation**: VSCode project scaffolding, Jupyter notebook generation
+
+#### Phase 4: Enterprise & Extensibility
+- 🔹 **Multi-provider support**: OpenAI, Anthropic, HuggingFace alongside Ollama
+- 🔹 **Enterprise observability**: OpenTelemetry, Prometheus metrics, audit trails
+- 🔹 **Plugin marketplace**: Community-contributed workers and tools
+- 🔹 **Advanced resource mgmt**: Cost optimization, rate limiting, resource pooling
+
+For detailed roadmap, see [ROADMAP.md](ROADMAP.md) § 10 (Future Vision).
+
+---
+
+## Contributing
+
+We welcome contributions aligned with the MVP scope. For larger features (Phases 2+), please open a discussion in Issues first.
+
+See [ROADMAP.md](ROADMAP.md) for implementation phases and capability matrix.
 ```
 
 Compare two explicit acceptance runs:

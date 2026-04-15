@@ -1,49 +1,38 @@
 from __future__ import annotations
 
-from schemas.task_schema import TaskType, WorkflowStep
+from schemas.task_schema import TaskType, WorkflowPlan, WorkflowStep
 
 
 class TaskRouter:
-    """Defines the fixed workflow and task inputs for the MVP."""
+    """Builds task inputs for a bounded workflow plan."""
 
-    def __init__(self, *, enable_review: bool = False) -> None:
-        self.enable_review = enable_review
-
-    def plan(self, question: str) -> list[WorkflowStep]:
-        steps = [
-            WorkflowStep(
-                task_type=TaskType.RESEARCH,
-                worker_name="research",
-                output_schema="ResearchResult",
-            ),
-            WorkflowStep(
-                task_type=TaskType.WRITING,
-                worker_name="writer",
-                output_schema="FinalAnswer",
-            ),
-        ]
-        if self.enable_review:
-            steps.append(
-                WorkflowStep(
-                    task_type=TaskType.REVIEW,
-                    worker_name="review",
-                    output_schema="ReviewResult",
-                )
-            )
-        return steps
+    def plan(self, workflow_plan: WorkflowPlan) -> list[WorkflowStep]:
+        return list(workflow_plan.steps)
 
     def build_task_input(self, step: WorkflowStep, question: str, context: dict) -> dict:
         if step.task_type is TaskType.RESEARCH:
             return {"question": question}
+        if step.task_type is TaskType.ANALYSIS:
+            return {"question": question}
         if step.task_type is TaskType.WRITING:
             return {
                 "question": question,
-                "research": context["research"].model_dump(),
+                "research": (
+                    context["research"].model_dump() if "research" in context else None
+                ),
+                "analysis": (
+                    context["analysis"].model_dump() if "analysis" in context else None
+                ),
             }
         if step.task_type is TaskType.REVIEW:
             return {
                 "question": question,
-                "research": context["research"].model_dump(),
+                "research": (
+                    context["research"].model_dump() if "research" in context else None
+                ),
+                "analysis": (
+                    context["analysis"].model_dump() if "analysis" in context else None
+                ),
                 "final_answer": context["final_answer"].model_dump(),
             }
         raise ValueError(f"Unsupported task type: {step.task_type}")

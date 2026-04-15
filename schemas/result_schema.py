@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from schemas.task_schema import TaskTrace
+from schemas.task_schema import TaskTrace, WorkflowPlan
 
 
 class ResearchResult(BaseModel):
@@ -20,6 +20,14 @@ class FinalAnswer(BaseModel):
     limitations: list[str] = Field(default_factory=list)
 
 
+class AnalysisResult(BaseModel):
+    question: str
+    summary: str
+    findings: list[str] = Field(default_factory=list)
+    metrics: list[str] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
+
+
 class ReviewResult(BaseModel):
     question: str
     consistent: bool
@@ -30,7 +38,9 @@ class ReviewResult(BaseModel):
 
 class WorkflowResult(BaseModel):
     question: str
-    research: ResearchResult
+    workflow_plan: WorkflowPlan
+    research: ResearchResult | None = None
+    analysis: AnalysisResult | None = None
     final_answer: FinalAnswer
     review: ReviewResult | None = None
     traces: list[TaskTrace] = Field(default_factory=list)

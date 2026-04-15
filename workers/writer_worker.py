@@ -19,4 +19,5 @@ class WriterWorker(BaseWorker[WriterTaskInput, FinalAnswer]):
         return self.prompt_manager.build_writer_request(
             question=payload.question,
             research=payload.research,
+            analysis=payload.analysis,
         )

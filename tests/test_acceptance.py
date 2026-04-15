@@ -31,7 +31,11 @@ def test_acceptance_dataset_passes_with_fake_runner_and_review() -> None:
 
     assert report.total_cases == len(ACCEPTANCE_QUESTIONS)
     assert report.failed_cases == 0
-    assert all(case.trace_order == ["research", "writer", "review"] for case in report.case_results)
+    assert all(
+        case.trace_order == [step.worker_name for step in case.result.workflow_plan.steps]
+        for case in report.case_results
+        if case.result is not None
+    )
 
 
 def test_acceptance_cli_writes_report_record(tmp_path) -> None:

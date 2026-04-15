@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class TaskType(str, Enum):
     RESEARCH = "research"
+    ANALYSIS = "analysis"
     WRITING = "writing"
     REVIEW = "review"
 
@@ -24,6 +25,13 @@ class WorkflowStep(BaseModel):
     task_type: TaskType
     worker_name: str
     output_schema: str
+
+
+class WorkflowPlan(BaseModel):
+    workflow_name: str
+    rationale: str
+    steps: list[WorkflowStep] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class TaskTrace(BaseModel):

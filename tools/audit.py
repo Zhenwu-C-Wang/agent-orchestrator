@@ -121,6 +121,11 @@ class AuditStore:
             "runner": record.metadata.get("runner"),
             "model": record.metadata.get("model"),
             "review_enabled": record.metadata.get("review_enabled"),
+            "workflow_name": (
+                record.result.workflow_plan.workflow_name
+                if record.result is not None
+                else None
+            ),
             "trace_count": len(record.traces),
             "worker_order": [trace.worker_name for trace in record.traces],
             "cache_hits": cache_hits,

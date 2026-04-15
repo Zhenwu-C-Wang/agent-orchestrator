@@ -29,5 +29,7 @@ def test_cli_outputs_json_workflow_result() -> None:
     payload = json.loads(completed.stdout)
 
     assert payload["question"].startswith("How should I define worker schemas")
+    assert payload["workflow_plan"]["workflow_name"] == "research_then_write"
     assert payload["research"]["sources"] == ["internal:fake-runner"]
+    assert payload["analysis"] is None
     assert len(payload["traces"]) == 2

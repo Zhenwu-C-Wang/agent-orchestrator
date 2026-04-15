@@ -16,6 +16,9 @@ dependencies = [
 dev = [
   "pytest>=8.0",
 ]
+ui = [
+  "streamlit>=1.37,<2.0",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
@@ -23,4 +26,4 @@ testpaths = ["tests"]
 
 [tool.setuptools]
 packages = ["models", "orchestrator", "schemas", "tools", "workers"]
-py-modules = ["main"]
+py-modules = ["app", "main"]

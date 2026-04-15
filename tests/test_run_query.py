@@ -115,5 +115,6 @@ def test_runs_cli_lists_and_shows_records(tmp_path) -> None:
     latest_payload = json.loads(latest_cmd.stdout)
 
     assert len(listed_payload) == 2
+    assert any(entry["workflow_name"] == "research_then_write" for entry in listed_payload)
     assert shown_payload["run_id"] == latest.run_id
     assert latest_payload["run_id"] == latest.run_id

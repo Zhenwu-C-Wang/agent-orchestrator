@@ -19,5 +19,6 @@ class ReviewWorker(BaseWorker[ReviewTaskInput, ReviewResult]):
         return self.prompt_manager.build_review_request(
             question=payload.question,
             research=payload.research,
+            analysis=payload.analysis,
             final_answer=payload.final_answer,
         )

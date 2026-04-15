@@ -5,6 +5,7 @@ from models.fake_runner import FakeModelRunner
 from models.ollama_client import OllamaClient
 from models.ollama_runner import OllamaModelRunner
 from models.prompt_manager import PromptManager
+from orchestrator.planner import TaskPlanner
 from orchestrator.router import TaskRouter
 from orchestrator.supervisor import Supervisor
 from schemas.result_schema import WorkflowResult
@@ -12,6 +13,7 @@ from tools.audit import AuditLogger
 from tools.cache import StructuredResultCache
 from tools.errors import ConfigurationError
 from tools.retry import RetryPolicy
+from workers.analysis_worker import AnalysisWorker
 from workers.research_worker import ResearchWorker
 from workers.review_worker import ReviewWorker
 from workers.writer_worker import WriterWorker
@@ -68,6 +70,7 @@ def build_supervisor(
 
     prompt_manager = PromptManager()
     workers = {
+        "analysis": AnalysisWorker(runner=runner, prompt_manager=prompt_manager),
         "research": ResearchWorker(runner=runner, prompt_manager=prompt_manager),
         "writer": WriterWorker(runner=runner, prompt_manager=prompt_manager),
         "review": ReviewWorker(runner=runner, prompt_manager=prompt_manager),
@@ -89,7 +92,8 @@ def build_supervisor(
         )
     return Supervisor(
         workers=workers,
-        router=TaskRouter(enable_review=enable_review),
+        planner=TaskPlanner(enable_review=enable_review),
+        router=TaskRouter(),
         audit_logger=audit_logger,
     )
 
@@ -97,10 +101,28 @@ def build_supervisor(
 def format_pretty(result: WorkflowResult) -> str:
     lines = [
         f"Question: {result.question}",
+        f"Workflow: {result.workflow_plan.workflow_name}",
+        f"Rationale: {result.workflow_plan.rationale}",
         "",
-        "Research Summary:",
-        result.research.summary,
-        "",
+    ]
+    if result.research is not None:
+        lines.extend(
+            [
+                "Research Summary:",
+                result.research.summary,
+                "",
+            ]
+        )
+    if result.analysis is not None:
+        lines.extend(
+            [
+                "Analysis Summary:",
+                result.analysis.summary,
+                "",
+            ]
+        )
+    lines.extend(
+        [
         "Final Answer:",
         result.final_answer.answer,
         "",
@@ -115,5 +137,6 @@ def format_pretty(result: WorkflowResult) -> str:
             f"- {trace.task_id} | {trace.worker_name} | {trace.status} | {trace.duration_ms}ms"
             for trace in result.traces
         ],
-    ]
+        ]
+    )
     return "\n".join(lines)
