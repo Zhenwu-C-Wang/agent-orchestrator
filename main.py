@@ -37,6 +37,12 @@ def parse_args() -> argparse.Namespace:
         help="Enable the optional ReviewWorker stage.",
     )
     parser.add_argument(
+        "--context-file",
+        action="append",
+        default=[],
+        help="Optional local file path to attach as explicit analysis context. Repeat to add more than one.",
+    )
+    parser.add_argument(
         "--audit-dir",
         default=None,
         help="Optional directory where one JSON audit record will be written per run.",
@@ -80,7 +86,10 @@ def _main() -> None:
         max_retries=args.max_retries,
         retry_backoff_seconds=args.retry_backoff_seconds,
     )
-    result = supervisor.run(args.question)
+    result = supervisor.run_with_context(
+        args.question,
+        context_files=args.context_file,
+    )
     if args.output == "json":
         print(result.model_dump_json(indent=2))
     elif args.output == "markdown":

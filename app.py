@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import tempfile
+from pathlib import Path
 
 import streamlit as st
 
@@ -13,13 +16,33 @@ from tools.audit import AuditStore
 DEFAULT_QUESTION = "How should I bootstrap a supervisor-worker agent system?"
 
 
-def _render_plan_preview(question: str, enable_review: bool) -> None:
+def _persist_uploaded_files(uploaded_files: list[object]) -> list[str]:
+    if not uploaded_files:
+        return []
+
+    target_dir = Path(tempfile.gettempdir()) / "agent-orchestrator-streamlit"
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    persisted_paths: list[str] = []
+    for uploaded_file in uploaded_files:
+        data = uploaded_file.getvalue()
+        digest = hashlib.sha256(data).hexdigest()[:10]
+        safe_name = Path(uploaded_file.name).name
+        target = target_dir / f"{digest}-{safe_name}"
+        target.write_bytes(data)
+        persisted_paths.append(str(target))
+    return persisted_paths
+
+
+def _render_plan_preview(question: str, enable_review: bool, context_files: list[str]) -> None:
     planner = TaskPlanner(enable_review=enable_review)
-    plan = planner.build_plan(question)
+    plan = planner.build_plan(question, context_files=context_files)
 
     st.subheader("Workflow Plan")
     st.caption(plan.rationale)
     st.markdown(f"**Selected workflow:** `{plan.workflow_name}`")
+    if context_files:
+        st.write(f"Context files: `{len(context_files)}` attached")
     for index, step in enumerate(plan.steps, start=1):
         st.write(f"{index}. `{step.worker_name}` -> `{step.output_schema}`")
 
@@ -222,6 +245,10 @@ def main() -> None:
         model = st.text_input("Model", value="llama3.1", disabled=runner_name == "fake")
         base_url = st.text_input("Ollama Base URL", value="http://localhost:11434")
         enable_review = st.checkbox("Enable review stage", value=False)
+        uploaded_context_files = st.file_uploader(
+            "Attach context files",
+            accept_multiple_files=True,
+        )
         audit_dir = st.text_input("Audit directory", value="artifacts/runs")
         cache_dir = st.text_input("Cache directory", value="")
         cache_max_age_seconds = st.number_input(
@@ -239,10 +266,11 @@ def main() -> None:
         )
 
     question = st.text_area("Task Input", value=DEFAULT_QUESTION, height=140)
+    context_files = _persist_uploaded_files(uploaded_context_files)
 
     left, right = st.columns([1, 1])
     with left:
-        _render_plan_preview(question, enable_review)
+        _render_plan_preview(question, enable_review, context_files)
     with right:
         _render_project_status()
 
@@ -252,6 +280,7 @@ def main() -> None:
         st.write(f"Runner: `{runner_name}`")
         st.write(f"Model: `{model if runner_name == 'ollama' else 'n/a'}`")
         st.write(f"Review enabled: `{enable_review}`")
+        st.write(f"Attached context files: `{len(context_files)}`")
         st.write(f"Audit dir: `{audit_dir or 'disabled'}`")
         st.write(f"Cache dir: `{cache_dir or 'disabled'}`")
     with settings_right:
@@ -277,7 +306,10 @@ def main() -> None:
                 retry_backoff_seconds=float(retry_backoff_seconds),
             )
             with st.spinner("Running workflow..."):
-                st.session_state["last_result"] = supervisor.run(question)
+                st.session_state["last_result"] = supervisor.run_with_context(
+                    question,
+                    context_files=context_files,
+                )
         except Exception as exc:  # pragma: no cover - UI error display path
             st.session_state["last_error"] = str(exc)
 

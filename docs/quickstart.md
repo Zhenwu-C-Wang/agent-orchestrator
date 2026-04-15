@@ -34,6 +34,15 @@ What to look for:
 - `tool_invocations` should include `local_file_context` and `csv_analysis`
 - the analysis summary should mention the referenced CSV
 
+You can also attach the same file explicitly instead of mentioning the path in the prompt:
+
+```bash
+python main.py "Summarize the most important changes in this data." \
+  --runner fake \
+  --context-file docs/sample_data/quarterly_metrics.csv \
+  --output json
+```
+
 ## 3. Persist And Inspect A Run
 
 Write audit output while running a workflow:

@@ -66,6 +66,38 @@ def test_cli_outputs_tool_invocations_for_local_csv_analysis(tmp_path) -> None:
     ]
 
 
+def test_cli_accepts_explicit_context_file_argument(tmp_path) -> None:
+    csv_path = tmp_path / "metrics.csv"
+    csv_path.write_text("day,visits\nMon,5\nTue,8\nWed,13\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "main.py",
+            "Summarize the most important changes in this data.",
+            "--runner",
+            "fake",
+            "--context-file",
+            str(csv_path),
+            "--output",
+            "json",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(completed.stdout)
+
+    assert payload["workflow_plan"]["workflow_name"] == "analysis_then_write"
+    assert payload["workflow_plan"]["metadata"]["context_file_count"] == 1
+    assert [invocation["tool_name"] for invocation in payload["tool_invocations"]] == [
+        "local_file_context",
+        "csv_analysis",
+    ]
+
+
 def test_cli_outputs_markdown_workflow_result() -> None:
     completed = subprocess.run(
         [

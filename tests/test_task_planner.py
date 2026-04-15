@@ -28,3 +28,18 @@ def test_task_planner_uses_analysis_workflow_when_local_file_is_referenced(tmp_p
     assert plan.workflow_name == "analysis_then_write"
     assert [step.worker_name for step in plan.steps] == ["analysis", "writer"]
     assert plan.metadata["has_local_files"] is True
+
+
+def test_task_planner_uses_analysis_workflow_for_explicit_context_files(tmp_path) -> None:
+    notes = tmp_path / "notes.md"
+    notes.write_text("# Findings\n- keep a structured trace\n", encoding="utf-8")
+
+    plan = TaskPlanner().build_plan(
+        "Summarize this file for me.",
+        context_files=[str(notes)],
+    )
+
+    assert plan.workflow_name == "analysis_then_write"
+    assert [step.worker_name for step in plan.steps] == ["analysis", "writer"]
+    assert plan.metadata["has_local_files"] is True
+    assert plan.metadata["context_file_count"] == 1

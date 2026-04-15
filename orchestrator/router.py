@@ -13,7 +13,10 @@ class TaskRouter:
         if step.task_type is TaskType.RESEARCH:
             return {"question": question}
         if step.task_type is TaskType.ANALYSIS:
-            return {"question": question}
+            return {
+                "question": question,
+                "context_files": list(context.get("context_files", [])),
+            }
         if step.task_type is TaskType.WRITING:
             return {
                 "question": question,

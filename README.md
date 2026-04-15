@@ -49,6 +49,19 @@ python main.py "How should I bootstrap a supervisor-worker system?" \
 By default the Ollama client calls `http://localhost:11434`.
 By default the Ollama runner uses `--max-retries 1 --retry-backoff-seconds 0.25` for model-layer retries only.
 
+## Explicit Context Files
+
+You can attach local files explicitly instead of embedding paths in the question:
+
+```bash
+python main.py "Summarize the most important changes in this data." \
+  --runner fake \
+  --context-file docs/sample_data/quarterly_metrics.csv \
+  --output markdown
+```
+
+Repeat `--context-file` to attach more than one local file. The Streamlit UI exposes the same capability through the sidebar file uploader.
+
 ## Output Modes
 
 - `--output pretty`: human-readable summary

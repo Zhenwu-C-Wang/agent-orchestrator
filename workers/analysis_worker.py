@@ -35,6 +35,7 @@ class AnalysisWorker(BaseWorker[AnalysisTaskInput, AnalysisResult]):
             tool_context, tool_invocations = self.tool_manager.run_for_task(
                 task_type=self.name,
                 question=validated_input.question,
+                explicit_paths=validated_input.context_files,
             )
         self.set_last_tool_invocations(tool_invocations)
         request = self.prompt_manager.build_analysis_request_with_tools(

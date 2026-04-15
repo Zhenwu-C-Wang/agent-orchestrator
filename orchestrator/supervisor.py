@@ -29,10 +29,21 @@ class Supervisor:
         self.audit_logger = audit_logger
 
     def run(self, question: str) -> WorkflowResult:
-        context: dict[str, object] = {}
+        return self.run_with_context(question, context_files=None)
+
+    def run_with_context(
+        self,
+        question: str,
+        *,
+        context_files: list[str] | None = None,
+    ) -> WorkflowResult:
+        normalized_context_files = list(context_files or [])
+        context: dict[str, object] = {
+            "context_files": normalized_context_files,
+        }
         traces: list[TaskTrace] = []
         tool_invocations: list[ToolInvocation] = []
-        workflow_plan = self.planner.build_plan(question)
+        workflow_plan = self.planner.build_plan(question, context_files=normalized_context_files)
         research_result: ResearchResult | None = None
         analysis_result: AnalysisResult | None = None
         final_answer: FinalAnswer | None = None
@@ -44,7 +55,10 @@ class Supervisor:
                 task_type=step.task_type,
                 input_payload=task_input,
                 output_schema=step.output_schema,
-                metadata={"question": question},
+                metadata={
+                    "question": question,
+                    "context_files": normalized_context_files,
+                },
             )
 
             started_at = perf_counter()

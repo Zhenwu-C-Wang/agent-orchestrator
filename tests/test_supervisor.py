@@ -43,3 +43,22 @@ def test_supervisor_records_tool_invocations_for_local_csv_analysis(tmp_path) ->
     assert result.workflow_plan.metadata["has_local_files"] is True
     assert result.traces[0].metadata["tool_invocation_count"] == 2
     assert "sales.csv" in result.analysis.summary
+
+
+def test_supervisor_uses_explicit_context_files_without_question_path(tmp_path) -> None:
+    csv_path = tmp_path / "sales.csv"
+    csv_path.write_text("month,revenue\nJan,10\nFeb,12\nMar,15\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake")
+
+    result = supervisor.run_with_context(
+        "Summarize the most important changes in this data.",
+        context_files=[str(csv_path)],
+    )
+
+    assert result.workflow_plan.workflow_name == "analysis_then_write"
+    assert result.workflow_plan.metadata["context_file_count"] == 1
+    assert [invocation.tool_name for invocation in result.tool_invocations] == [
+        "local_file_context",
+        "csv_analysis",
+    ]

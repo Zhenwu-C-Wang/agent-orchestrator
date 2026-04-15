@@ -33,16 +33,16 @@ class Tool(Protocol):
         ...
 
 
-def find_local_file_paths(question: str, *, base_dir: str | Path | None = None) -> list[Path]:
+def normalize_local_file_paths(
+    paths: list[str | Path] | None,
+    *,
+    base_dir: str | Path | None = None,
+) -> list[Path]:
     root = Path(base_dir) if base_dir is not None else Path.cwd()
-    candidates: list[str] = []
-    candidates.extend(match.group(1) for match in _BACKTICKED_PATH_PATTERN.finditer(question))
-    candidates.extend(match.group("path") for match in _PATH_TOKEN_PATTERN.finditer(question))
-
     resolved: list[Path] = []
     seen: set[Path] = set()
-    for raw in candidates:
-        cleaned = raw.strip().strip("()[]{}<>\"'").rstrip(".,;:!?")
+    for raw in paths or []:
+        cleaned = str(raw).strip().strip("()[]{}<>\"'").rstrip(".,;:!?")
         if not cleaned:
             continue
         candidate = Path(cleaned).expanduser()
@@ -57,6 +57,13 @@ def find_local_file_paths(question: str, *, base_dir: str | Path | None = None) 
     return resolved
 
 
+def find_local_file_paths(question: str, *, base_dir: str | Path | None = None) -> list[Path]:
+    candidates: list[str] = []
+    candidates.extend(match.group(1) for match in _BACKTICKED_PATH_PATTERN.finditer(question))
+    candidates.extend(match.group("path") for match in _PATH_TOKEN_PATTERN.finditer(question))
+    return normalize_local_file_paths(candidates, base_dir=base_dir)
+
+
 class ToolManager:
     """Runs a bounded registry of local tools and records structured invocations."""
 
@@ -69,8 +76,14 @@ class ToolManager:
         self.tools = list(tools or [])
         self.base_dir = Path(base_dir) if base_dir is not None else Path.cwd()
 
-    def run_for_task(self, *, task_type: str, question: str) -> tuple[dict[str, Any], list[ToolInvocation]]:
-        candidate_paths = find_local_file_paths(question, base_dir=self.base_dir)
+    def run_for_task(
+        self,
+        *,
+        task_type: str,
+        question: str,
+        explicit_paths: list[str | Path] | None = None,
+    ) -> tuple[dict[str, Any], list[ToolInvocation]]:
+        candidate_paths = self._candidate_paths(question=question, explicit_paths=explicit_paths)
         base_context: dict[str, Any] = {
             "candidate_paths": candidate_paths,
         }
@@ -113,3 +126,20 @@ class ToolManager:
                 )
 
         return combined_context, invocations
+
+    def _candidate_paths(
+        self,
+        *,
+        question: str,
+        explicit_paths: list[str | Path] | None = None,
+    ) -> list[Path]:
+        discovered = find_local_file_paths(question, base_dir=self.base_dir)
+        explicit = normalize_local_file_paths(explicit_paths, base_dir=self.base_dir)
+        ordered: list[Path] = []
+        seen: set[Path] = set()
+        for path in [*explicit, *discovered]:
+            if path in seen:
+                continue
+            seen.add(path)
+            ordered.append(path)
+        return ordered

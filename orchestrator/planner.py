@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from schemas.task_schema import TaskType, WorkflowPlan, WorkflowStep
-from tools.registry import find_local_file_paths
+from tools.registry import find_local_file_paths, normalize_local_file_paths
 
 
 class TaskPlanner:
@@ -10,9 +10,16 @@ class TaskPlanner:
     def __init__(self, *, enable_review: bool = False) -> None:
         self.enable_review = enable_review
 
-    def build_plan(self, question: str) -> WorkflowPlan:
+    def build_plan(
+        self,
+        question: str,
+        *,
+        context_files: list[str] | None = None,
+    ) -> WorkflowPlan:
         lowered = question.lower()
-        has_local_files = bool(find_local_file_paths(question))
+        has_local_files = bool(
+            find_local_file_paths(question) or normalize_local_file_paths(context_files)
+        )
         is_analysis = any(
             keyword in lowered
             for keyword in ("analyze", "analyse", "analysis", "dataset", "csv", "data file")
@@ -77,5 +84,6 @@ class TaskPlanner:
                 "review_enabled": self.enable_review,
                 "question_type": "analysis" if is_analysis else "research",
                 "has_local_files": has_local_files,
+                "context_file_count": len(normalize_local_file_paths(context_files)),
             },
         )
