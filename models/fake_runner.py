@@ -47,6 +47,7 @@ class FakeModelRunner(StructuredModelRunner):
             tool_context = request.payload.get("tool_context") or {}
             local_files = tool_context.get("local_files", [])
             csv_summaries = tool_context.get("csv_summaries", [])
+            json_summaries = tool_context.get("json_summaries", [])
             web_pages = tool_context.get("web_pages", [])
             summary = f"Analysis summary for: {question}"
             findings = [
@@ -56,7 +57,10 @@ class FakeModelRunner(StructuredModelRunner):
             ]
             metrics = [
                 "workflow_path=analysis_then_write",
-                f"tool_invocation_count={len(local_files) + len(csv_summaries) + len(web_pages)}",
+                (
+                    "tool_invocation_count="
+                    f"{len(local_files) + len(csv_summaries) + len(json_summaries) + len(web_pages)}"
+                ),
             ]
             caveats = [
                 "This analysis output is deterministic and does not execute real code.",
@@ -74,6 +78,16 @@ class FakeModelRunner(StructuredModelRunner):
                     metrics.append(
                         f"{summary_item['name']}:columns={len(summary_item['columns'])},"
                         f"sample_rows={summary_item['sample_row_count']}"
+                    )
+            if json_summaries:
+                json_names = ", ".join(summary_item["name"] for summary_item in json_summaries)
+                summary = f"{summary} Reviewed JSON structure for: {json_names}."
+                findings.append("JSON structure and sample numeric fields were summarized.")
+                for summary_item in json_summaries:
+                    metrics.append(
+                        f"{summary_item['name']}:top_level_type={summary_item['top_level_type']},"
+                        f"fields={len(summary_item['field_names'])},"
+                        f"numeric_fields={len(summary_item['numeric_fields'])}"
                     )
             if web_pages:
                 urls = ", ".join(page["url"] for page in web_pages)

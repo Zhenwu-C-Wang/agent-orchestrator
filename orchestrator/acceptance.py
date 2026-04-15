@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 from time import perf_counter
 
 from orchestrator.bootstrap import build_supervisor
@@ -10,15 +11,31 @@ from tools.acceptance import AcceptanceLogger
 from tools.errors import AcceptanceFailedError, run_cli
 
 ACCEPTANCE_SAMPLE_CSV = "docs/sample_data/quarterly_metrics.csv"
+ACCEPTANCE_SAMPLE_JSON = "docs/sample_data/quarterly_metrics.json"
 
-ACCEPTANCE_QUESTIONS = [
-    "How should I bootstrap a supervisor-worker agent system?",
-    "What are the tradeoffs of fake runners versus local models in an MVP?",
-    "How should I define worker schemas before adding more workers?",
-    "What risks appear when a supervisor directly writes the final answer?",
-    "When should I add retry, cache, and audit layers to this system?",
-    f"Analyze `{ACCEPTANCE_SAMPLE_CSV}` and summarize the most important changes.",
+
+@dataclass(frozen=True)
+class AcceptanceCaseDefinition:
+    question: str
+    context_files: tuple[str, ...] = ()
+    context_urls: tuple[str, ...] = ()
+
+ACCEPTANCE_CASES = [
+    AcceptanceCaseDefinition("How should I bootstrap a supervisor-worker agent system?"),
+    AcceptanceCaseDefinition("What are the tradeoffs of fake runners versus local models in an MVP?"),
+    AcceptanceCaseDefinition("How should I define worker schemas before adding more workers?"),
+    AcceptanceCaseDefinition("What risks appear when a supervisor directly writes the final answer?"),
+    AcceptanceCaseDefinition("When should I add retry, cache, and audit layers to this system?"),
+    AcceptanceCaseDefinition(
+        "Analyze the bundled quarterly metrics dataset and summarize the most important changes.",
+        context_files=(ACCEPTANCE_SAMPLE_CSV,),
+    ),
+    AcceptanceCaseDefinition(
+        "Analyze the bundled quarterly metrics JSON snapshot and summarize the most important changes.",
+        context_files=(ACCEPTANCE_SAMPLE_JSON,),
+    ),
 ]
+ACCEPTANCE_QUESTIONS = [case.question for case in ACCEPTANCE_CASES]
 
 def _has_content(value: str) -> bool:
     return bool(value and value.strip())
@@ -106,14 +123,21 @@ def run_acceptance(
 
     case_results: list[AcceptanceCaseResult] = []
 
-    for question in ACCEPTANCE_QUESTIONS:
+    for case in ACCEPTANCE_CASES:
         started_at = perf_counter()
         errors: list[str] = []
         warnings: list[str] = []
         result: WorkflowResult | None = None
 
         try:
-            result = supervisor.run(question)
+            if case.context_files or case.context_urls:
+                result = supervisor.run_with_context(
+                    case.question,
+                    context_files=list(case.context_files),
+                    context_urls=list(case.context_urls),
+                )
+            else:
+                result = supervisor.run(case.question)
             errors, warnings = evaluate_result(result, expect_review=enable_review)
         except Exception as exc:
             errors = [str(exc)]
@@ -121,7 +145,7 @@ def run_acceptance(
         duration_ms = int((perf_counter() - started_at) * 1000)
         case_results.append(
             AcceptanceCaseResult(
-                question=question,
+                question=case.question,
                 passed=not errors,
                 duration_ms=duration_ms,
                 errors=errors,

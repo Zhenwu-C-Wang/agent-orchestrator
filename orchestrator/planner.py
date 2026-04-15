@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 from schemas.task_schema import TaskType, WorkflowPlan, WorkflowStep
-from tools.registry import (
-    find_http_urls,
-    find_local_file_paths,
-    normalize_http_urls,
-    normalize_local_file_paths,
-)
+from tools.registry import find_http_urls, find_local_file_paths
 
 
 class TaskPlanner:
     """Builds a bounded workflow plan from the user's request."""
 
-    def __init__(self, *, enable_review: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        enable_review: bool = False,
+        allow_question_file_paths: bool = False,
+        allow_question_urls: bool = False,
+    ) -> None:
         self.enable_review = enable_review
+        self.allow_question_file_paths = allow_question_file_paths
+        self.allow_question_urls = allow_question_urls
 
     def build_plan(
         self,
@@ -23,8 +26,12 @@ class TaskPlanner:
         context_urls: list[str] | None = None,
     ) -> WorkflowPlan:
         lowered = question.lower()
-        has_local_files = bool(find_local_file_paths(question) or normalize_local_file_paths(context_files))
-        has_context_urls = bool(find_http_urls(question) or normalize_http_urls(context_urls))
+        discovered_local_files = (
+            find_local_file_paths(question) if self.allow_question_file_paths else []
+        )
+        discovered_context_urls = find_http_urls(question) if self.allow_question_urls else []
+        has_local_files = bool(discovered_local_files or context_files)
+        has_context_urls = bool(discovered_context_urls or context_urls)
         is_analysis = any(
             keyword in lowered
             for keyword in ("analyze", "analyse", "analysis", "dataset", "csv", "data file")
@@ -94,8 +101,12 @@ class TaskPlanner:
                 "review_enabled": self.enable_review,
                 "question_type": "analysis" if is_analysis else "research",
                 "has_local_files": has_local_files,
-                "context_file_count": len(normalize_local_file_paths(context_files)),
+                "context_file_count": len(context_files or []),
+                "discovered_context_file_count": len(discovered_local_files),
+                "inline_context_file_discovery_enabled": self.allow_question_file_paths,
                 "has_context_urls": has_context_urls,
-                "context_url_count": len(normalize_http_urls(context_urls)),
+                "context_url_count": len(context_urls or []),
+                "discovered_context_url_count": len(discovered_context_urls),
+                "inline_context_url_discovery_enabled": self.allow_question_urls,
             },
         )

@@ -23,7 +23,10 @@ def _seed_audit_records(tmp_path):
         audit_dir=str(tmp_path),
         cache_dir=str(tmp_path / "cache"),
     )
-    success_supervisor.run(f"Analyze `{csv_path}` and summarize the biggest changes.")
+    success_supervisor.run_with_context(
+        "Analyze this dataset and summarize the biggest changes.",
+        context_files=[str(csv_path)],
+    )
 
     failure_supervisor = build_supervisor(
         runner_name="fake",

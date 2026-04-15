@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from schemas.tool_schema import ToolInvocation
 
 
 class AgentOrchestratorError(Exception):
@@ -27,6 +31,17 @@ class ModelResponseFormatError(AgentOrchestratorError):
 class WorkflowExecutionError(AgentOrchestratorError):
     exit_code = 6
     error_code = "workflow-execution-error"
+
+
+class ToolExecutionError(WorkflowExecutionError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        invocations: list["ToolInvocation"] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.invocations = list(invocations or [])
 
 
 class AuditQueryError(AgentOrchestratorError):

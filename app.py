@@ -43,8 +43,14 @@ def _render_plan_preview(
     enable_review: bool,
     context_files: list[str],
     context_urls: list[str],
+    allow_inline_context_files: bool,
+    allow_inline_context_urls: bool,
 ) -> None:
-    planner = TaskPlanner(enable_review=enable_review)
+    planner = TaskPlanner(
+        enable_review=enable_review,
+        allow_question_file_paths=allow_inline_context_files,
+        allow_question_urls=allow_inline_context_urls,
+    )
     plan = planner.build_plan(
         question,
         context_files=context_files,
@@ -260,6 +266,14 @@ def main() -> None:
         model = st.text_input("Model", value="llama3.1", disabled=runner_name == "fake")
         base_url = st.text_input("Ollama Base URL", value="http://localhost:11434")
         enable_review = st.checkbox("Enable review stage", value=False)
+        allow_inline_context_files = st.checkbox(
+            "Allow file paths embedded in the question",
+            value=False,
+        )
+        allow_inline_context_urls = st.checkbox(
+            "Allow URLs embedded in the question",
+            value=False,
+        )
         uploaded_context_files = st.file_uploader(
             "Attach context files",
             accept_multiple_files=True,
@@ -291,7 +305,14 @@ def main() -> None:
 
     left, right = st.columns([1, 1])
     with left:
-        _render_plan_preview(question, enable_review, context_files, context_urls)
+        _render_plan_preview(
+            question,
+            enable_review,
+            context_files,
+            context_urls,
+            allow_inline_context_files,
+            allow_inline_context_urls,
+        )
     with right:
         _render_project_status()
 
@@ -301,6 +322,8 @@ def main() -> None:
         st.write(f"Runner: `{runner_name}`")
         st.write(f"Model: `{model if runner_name == 'ollama' else 'n/a'}`")
         st.write(f"Review enabled: `{enable_review}`")
+        st.write(f"Inline file-path discovery: `{allow_inline_context_files}`")
+        st.write(f"Inline URL discovery: `{allow_inline_context_urls}`")
         st.write(f"Attached context files: `{len(context_files)}`")
         st.write(f"Attached context URLs: `{len(context_urls)}`")
         st.write(f"Audit dir: `{audit_dir or 'disabled'}`")
@@ -321,6 +344,8 @@ def main() -> None:
                 model=model,
                 base_url=base_url,
                 enable_review=enable_review,
+                allow_inline_context_files=allow_inline_context_files,
+                allow_inline_context_urls=allow_inline_context_urls,
                 audit_dir=audit_dir or None,
                 cache_dir=cache_dir or None,
                 cache_max_age_seconds=cache_max_age_seconds if cache_dir else None,

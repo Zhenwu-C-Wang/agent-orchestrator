@@ -14,6 +14,7 @@ from tools.cache import StructuredResultCache
 from tools.csv_analysis_tool import CSVAnalysisTool
 from tools.errors import ConfigurationError
 from tools.http_fetch_tool import HttpFetchTool
+from tools.json_analysis_tool import JSONAnalysisTool
 from tools.local_file_tool import LocalFileContextTool
 from tools.registry import ToolManager
 from tools.retry import RetryPolicy
@@ -29,6 +30,8 @@ def build_supervisor(
     model: str = "llama3.1",
     base_url: str = "http://localhost:11434",
     enable_review: bool = False,
+    allow_inline_context_files: bool = False,
+    allow_inline_context_urls: bool = False,
     audit_dir: str | None = None,
     cache_dir: str | None = None,
     cache_max_age_seconds: float | None = None,
@@ -77,8 +80,11 @@ def build_supervisor(
         tools=[
             LocalFileContextTool(),
             CSVAnalysisTool(),
+            JSONAnalysisTool(),
             HttpFetchTool(),
-        ]
+        ],
+        allow_question_file_paths=allow_inline_context_files,
+        allow_question_urls=allow_inline_context_urls,
     )
     workers = {
         "analysis": AnalysisWorker(
@@ -98,6 +104,8 @@ def build_supervisor(
                 "runner": runner_name,
                 "model": model_name,
                 "review_enabled": enable_review,
+                "inline_context_file_discovery_enabled": allow_inline_context_files,
+                "inline_context_url_discovery_enabled": allow_inline_context_urls,
                 "cache_enabled": bool(cache_dir),
                 "cache_dir": cache_dir,
                 "cache_max_age_seconds": cache_max_age_seconds,
@@ -107,7 +115,11 @@ def build_supervisor(
         )
     return Supervisor(
         workers=workers,
-        planner=TaskPlanner(enable_review=enable_review),
+        planner=TaskPlanner(
+            enable_review=enable_review,
+            allow_question_file_paths=allow_inline_context_files,
+            allow_question_urls=allow_inline_context_urls,
+        ),
         router=TaskRouter(),
         audit_logger=audit_logger,
     )

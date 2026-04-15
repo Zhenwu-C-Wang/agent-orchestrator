@@ -23,8 +23,9 @@ Useful variants:
 Run the built-in CSV sample through the analysis path:
 
 ```bash
-python main.py "Analyze \`docs/sample_data/quarterly_metrics.csv\` and summarize the most important changes." \
+python main.py "Analyze this dataset and summarize the most important changes." \
   --runner fake \
+  --context-file docs/sample_data/quarterly_metrics.csv \
   --output markdown
 ```
 
@@ -32,15 +33,23 @@ What to look for:
 
 - workflow selection should be `analysis_then_write`
 - `tool_invocations` should include `local_file_context` and `csv_analysis`
-- the analysis summary should mention the referenced CSV
+- the analysis summary should mention the attached CSV
 
-You can also attach the same file explicitly instead of mentioning the path in the prompt:
+The same explicit-context path also works for JSON snapshots:
 
 ```bash
-python main.py "Summarize the most important changes in this data." \
+python main.py "Summarize the most important changes in this JSON snapshot." \
   --runner fake \
-  --context-file docs/sample_data/quarterly_metrics.csv \
+  --context-file docs/sample_data/quarterly_metrics.json \
   --output json
+```
+
+Inline file-path and URL discovery is disabled by default. If you want to opt back in, use:
+
+```bash
+python main.py "Analyze \`docs/sample_data/quarterly_metrics.csv\` and summarize the most important changes." \
+  --runner fake \
+  --allow-inline-context-files
 ```
 
 ## 3. URL-Backed Analysis Workflow
@@ -67,8 +76,9 @@ The Streamlit sidebar exposes the same capability through a multiline URL input.
 Write audit output while running a workflow:
 
 ```bash
-python main.py "Analyze \`docs/sample_data/quarterly_metrics.csv\` and summarize the most important changes." \
+python main.py "Analyze this dataset and summarize the most important changes." \
   --runner fake \
+  --context-file docs/sample_data/quarterly_metrics.csv \
   --audit-dir artifacts/runs \
   --output json
 ```
@@ -93,6 +103,7 @@ The current dataset includes:
 - research-style orchestration cases
 - review coverage when `--with-review` is enabled
 - one tool-backed CSV analysis case
+- one tool-backed JSON analysis case
 
 Persist a report if you want later comparison:
 

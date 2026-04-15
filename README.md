@@ -62,6 +62,15 @@ python main.py "Summarize the most important changes in this data." \
 
 Repeat `--context-file` to attach more than one local file. The Streamlit UI exposes the same capability through the sidebar file uploader.
 
+The bounded analysis toolchain currently understands local CSV and JSON snapshots especially well. For example:
+
+```bash
+python main.py "Summarize the most important changes in this JSON snapshot." \
+  --runner fake \
+  --context-file docs/sample_data/quarterly_metrics.json \
+  --output markdown
+```
+
 You can also attach URLs explicitly:
 
 ```bash
@@ -72,6 +81,22 @@ python main.py "Summarize the most important findings from this webpage." \
 ```
 
 Repeat `--context-url` to attach more than one URL. The Streamlit UI exposes the same capability through the sidebar URL input.
+
+By default, file paths and URLs embedded directly in the question text are ignored. Re-enable inline discovery only when you want it:
+
+```bash
+python main.py "Analyze `docs/sample_data/quarterly_metrics.csv` and summarize the most important changes." \
+  --runner fake \
+  --allow-inline-context-files
+```
+
+```bash
+python main.py "Summarize the most important findings from https://example.com/report." \
+  --runner fake \
+  --allow-inline-context-urls
+```
+
+If a selected tool fails, the workflow exits non-zero instead of continuing with an ungrounded analysis result.
 
 ## Output Modes
 
@@ -86,7 +111,7 @@ The CLIs use normalized non-zero exit codes for automation:
 - `3`: configuration error
 - `4`: model invocation error
 - `5`: model response format error
-- `6`: unclassified workflow execution error
+- `6`: workflow execution error, including tool execution failures
 - `7`: audit query error
 - `8`: acceptance run finished with failed cases
 - `9`: cache query or cache management error
@@ -196,7 +221,7 @@ python -m orchestrator.cache --cache-dir artifacts/cache clear
 
 ## Acceptance Run
 
-Run the 6-question acceptance dataset with the fake runner:
+Run the 7-question acceptance dataset with the fake runner:
 
 ```bash
 python -m orchestrator.acceptance --runner fake
@@ -208,7 +233,7 @@ Run the same dataset against a local Ollama model:
 python -m orchestrator.acceptance --runner ollama --model qwen2.5:14b
 ```
 
-The dataset includes one tool-backed CSV analysis case that references `docs/sample_data/quarterly_metrics.csv`.
+The dataset includes one tool-backed CSV analysis case and one tool-backed JSON analysis case, both attached as explicit context.
 Use `--output json` if you want the full structured report.
 Add `--with-review` to validate the optional three-stage workflow.
 Add `--report-dir artifacts/acceptance` if you want one persisted acceptance record per run.

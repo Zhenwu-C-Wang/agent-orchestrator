@@ -63,9 +63,11 @@ That split keeps several things clean:
 
 The current tool path is still bounded and guarded:
 
-- `local_file_context` reads a bounded preview of referenced local files
+- `local_file_context` reads a bounded preview of explicitly attached local files, or inline file paths only when that opt-in switch is enabled
 - `csv_analysis` computes lightweight CSV structure and numeric summaries
-- `http_fetch` fetches a small text preview from explicitly attached or referenced URLs
+- `json_analysis` computes lightweight JSON structure, key-path, and numeric-field summaries
+- `http_fetch` fetches a small text preview from explicitly attached URLs, or inline URLs only when that opt-in switch is enabled
+- tool failures stop the workflow instead of silently degrading into an ungrounded analysis
 
 ## Why Two Runners Exist
 
@@ -99,9 +101,9 @@ The project now supports:
 
 Each mode is produced from the same structured workflow result so presentation changes do not require re-running the orchestration.
 
-## Why Acceptance Now Covers A Tool-Backed Case
+## Why Acceptance Now Covers Tool-Backed Cases
 
-The acceptance dataset includes one CSV-backed analysis case that references `docs/sample_data/quarterly_metrics.csv`.
+The acceptance dataset includes one CSV-backed analysis case and one JSON-backed analysis case, both attached explicitly.
 
 That matters because we no longer only validate:
 

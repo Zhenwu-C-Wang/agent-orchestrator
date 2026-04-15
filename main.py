@@ -37,6 +37,16 @@ def parse_args() -> argparse.Namespace:
         help="Enable the optional ReviewWorker stage.",
     )
     parser.add_argument(
+        "--allow-inline-context-files",
+        action="store_true",
+        help="Allow file paths embedded in the question text to trigger local file tools.",
+    )
+    parser.add_argument(
+        "--allow-inline-context-urls",
+        action="store_true",
+        help="Allow URLs embedded in the question text to trigger HTTP fetch tools.",
+    )
+    parser.add_argument(
         "--context-file",
         action="append",
         default=[],
@@ -86,6 +96,8 @@ def _main() -> None:
         model=args.model,
         base_url=args.base_url,
         enable_review=args.with_review,
+        allow_inline_context_files=args.allow_inline_context_files,
+        allow_inline_context_urls=args.allow_inline_context_urls,
         audit_dir=args.audit_dir,
         cache_dir=args.cache_dir,
         cache_max_age_seconds=args.cache_max_age_seconds,

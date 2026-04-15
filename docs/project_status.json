@@ -2,17 +2,17 @@
   "current_phase": "Phase 1 (Practical V1)",
   "current_milestone": "M3: Usability Baseline",
   "next_milestone": "Phase 2: Dynamic Workflows",
-  "summary": "The project now has bounded workflow planning, tool-backed local file, CSV, and HTTP context analysis, structured outputs in multiple formats, audit persistence, acceptance coverage, and a minimal Streamlit UI. The current push is to make these capabilities easier to understand and use while preparing for broader workflow and tool expansion.",
+  "summary": "The project now has bounded workflow planning, tool-backed local file, CSV, JSON, and HTTP context analysis, structured outputs in multiple formats, audit persistence, acceptance coverage, and a minimal Streamlit UI. The current push is to extend the practical tool registry while preparing for broader workflow expansion.",
   "completed_items": [
     "Closed-loop supervisor orchestration with research, writing, and optional review stages",
     "Bounded workflow planning that routes between research and analysis requests",
     "Structured workflow output with pretty, JSON, and Markdown renderers",
-    "Local tool integration with file preview, CSV analysis, and bounded HTTP fetch adapters",
+    "Local tool integration with file preview, CSV analysis, JSON analysis, and bounded HTTP fetch adapters",
     "Local audit persistence, acceptance reporting, request cache, and retry plumbing",
     "Minimal Streamlit UI for task input, plan preview, traces, recent runs, and result export"
   ],
   "next_items": [
-    "Expand the tool registry beyond bounded local and HTTP context tools",
+    "Add a guarded execution-oriented analysis path on top of the expanded local tool registry",
     "Add richer UI-assisted inspection and workflow guidance",
     "Broaden workflow planning beyond the current bounded templates"
   ]
