@@ -51,6 +51,7 @@ By default the Ollama runner uses `--max-retries 1 --retry-backoff-seconds 0.25`
 
 - `--output pretty`: human-readable summary
 - `--output json`: full structured `WorkflowResult`
+- `--output markdown`: markdown report that is easy to save, share, or paste into docs
 
 ## Exit Codes
 

@@ -64,3 +64,56 @@ def test_cli_outputs_tool_invocations_for_local_csv_analysis(tmp_path) -> None:
         "local_file_context",
         "csv_analysis",
     ]
+
+
+def test_cli_outputs_markdown_workflow_result() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "main.py",
+            "How should I bootstrap a supervisor-worker system?",
+            "--runner",
+            "fake",
+            "--output",
+            "markdown",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = completed.stdout
+
+    assert payload.startswith("# Workflow Result")
+    assert "## Final Answer" in payload
+    assert "## Trace" in payload
+    assert "- Workflow: `research_then_write`" in payload
+
+
+def test_cli_outputs_markdown_tool_section_for_analysis(tmp_path) -> None:
+    csv_path = tmp_path / "metrics.csv"
+    csv_path.write_text("day,visits\nMon,5\nTue,8\nWed,13\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "main.py",
+            f"Analyze `{csv_path}` and summarize the biggest changes.",
+            "--runner",
+            "fake",
+            "--output",
+            "markdown",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = completed.stdout
+
+    assert "## Tool Invocations" in payload
+    assert "### `local_file_context`" in payload
+    assert "### `csv_analysis`" in payload
+    assert "- Workflow: `analysis_then_write`" in payload

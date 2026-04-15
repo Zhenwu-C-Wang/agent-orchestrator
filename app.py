@@ -4,7 +4,7 @@ import json
 
 import streamlit as st
 
-from orchestrator.bootstrap import build_supervisor, format_pretty
+from orchestrator.bootstrap import build_supervisor, format_markdown, format_pretty
 from orchestrator.planner import TaskPlanner
 from orchestrator.project_status import load_project_status
 from schemas.result_schema import WorkflowResult
@@ -121,6 +121,7 @@ def _render_outputs(result: WorkflowResult) -> None:
 def _render_downloads(result: WorkflowResult) -> None:
     payload_json = result.model_dump_json(indent=2)
     pretty_output = format_pretty(result)
+    markdown_output = format_markdown(result)
 
     st.subheader("Export")
     st.download_button(
@@ -128,6 +129,12 @@ def _render_downloads(result: WorkflowResult) -> None:
         data=payload_json,
         file_name="workflow-result.json",
         mime="application/json",
+    )
+    st.download_button(
+        label="Download Markdown",
+        data=markdown_output,
+        file_name="workflow-result.md",
+        mime="text/markdown",
     )
     st.download_button(
         label="Download Text Summary",

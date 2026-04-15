@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from orchestrator.bootstrap import build_supervisor, format_pretty
+from orchestrator.bootstrap import build_supervisor, format_markdown, format_pretty
 from tools.errors import run_cli
 
 
@@ -27,7 +27,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output",
-        choices=["pretty", "json"],
+        choices=["pretty", "json", "markdown"],
         default="pretty",
         help="Output mode.",
     )
@@ -83,6 +83,8 @@ def _main() -> None:
     result = supervisor.run(args.question)
     if args.output == "json":
         print(result.model_dump_json(indent=2))
+    elif args.output == "markdown":
+        print(format_markdown(result))
     else:
         print(format_pretty(result))
 

@@ -171,3 +171,113 @@ def format_pretty(result: WorkflowResult) -> str:
         ]
     )
     return "\n".join(lines)
+
+
+def format_markdown(result: WorkflowResult) -> str:
+    lines = [
+        "# Workflow Result",
+        "",
+        f"- Question: {result.question}",
+        f"- Workflow: `{result.workflow_plan.workflow_name}`",
+        f"- Rationale: {result.workflow_plan.rationale}",
+        "",
+    ]
+
+    if result.research is not None:
+        lines.extend(
+            [
+                "## Research",
+                "",
+                result.research.summary,
+                "",
+            ]
+        )
+        if result.research.key_points:
+            lines.extend(["### Key Points", ""])
+            lines.extend(f"- {point}" for point in result.research.key_points)
+            lines.append("")
+        if result.research.caveats:
+            lines.extend(["### Caveats", ""])
+            lines.extend(f"- {caveat}" for caveat in result.research.caveats)
+            lines.append("")
+
+    if result.analysis is not None:
+        lines.extend(
+            [
+                "## Analysis",
+                "",
+                result.analysis.summary,
+                "",
+            ]
+        )
+        if result.analysis.findings:
+            lines.extend(["### Findings", ""])
+            lines.extend(f"- {finding}" for finding in result.analysis.findings)
+            lines.append("")
+        if result.analysis.metrics:
+            lines.extend(["### Metrics", ""])
+            lines.extend(f"- `{metric}`" for metric in result.analysis.metrics)
+            lines.append("")
+        if result.analysis.caveats:
+            lines.extend(["### Caveats", ""])
+            lines.extend(f"- {caveat}" for caveat in result.analysis.caveats)
+            lines.append("")
+
+    lines.extend(
+        [
+            "## Final Answer",
+            "",
+            result.final_answer.answer,
+            "",
+        ]
+    )
+    if result.final_answer.supporting_points:
+        lines.extend(["### Supporting Points", ""])
+        lines.extend(f"- {point}" for point in result.final_answer.supporting_points)
+        lines.append("")
+    if result.final_answer.limitations:
+        lines.extend(["### Limitations", ""])
+        lines.extend(f"- {limitation}" for limitation in result.final_answer.limitations)
+        lines.append("")
+
+    lines.extend(
+        [
+            "## Review",
+            "",
+            result.review.verdict if result.review else "Review stage disabled.",
+            "",
+        ]
+    )
+
+    if result.tool_invocations:
+        lines.extend(["## Tool Invocations", ""])
+        for invocation in result.tool_invocations:
+            lines.extend(
+                [
+                    f"### `{invocation.tool_name}`",
+                    "",
+                    f"- Status: `{invocation.status}`",
+                    f"- Purpose: {invocation.purpose}",
+                    f"- Input: {invocation.input_summary}",
+                    f"- Output: {invocation.output_summary or 'n/a'}",
+                    f"- Duration: `{invocation.duration_ms}ms`",
+                ]
+            )
+            if invocation.error:
+                lines.append(f"- Error: {invocation.error}")
+            lines.append("")
+
+    lines.extend(
+        [
+            "## Trace",
+            "",
+            "| Task ID | Worker | Status | Duration |",
+            "| --- | --- | --- | --- |",
+        ]
+    )
+    lines.extend(
+        f"| `{trace.task_id}` | `{trace.worker_name}` | `{trace.status}` | `{trace.duration_ms}ms` |"
+        for trace in result.traces
+    )
+    lines.append("")
+    return "\n".join(lines)
