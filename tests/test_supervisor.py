@@ -43,13 +43,14 @@ def test_supervisor_records_tool_invocations_for_local_csv_analysis(tmp_path) ->
     )
 
     assert result.analysis is not None
-    assert len(result.tool_invocations) == 2
+    assert len(result.tool_invocations) == 3
     assert [invocation.tool_name for invocation in result.tool_invocations] == [
         "local_file_context",
         "csv_analysis",
+        "data_computation",
     ]
     assert result.workflow_plan.metadata["has_local_files"] is True
-    assert result.traces[0].metadata["tool_invocation_count"] == 2
+    assert result.traces[0].metadata["tool_invocation_count"] == 3
     assert "sales.csv" in result.analysis.summary
 
 
@@ -68,6 +69,7 @@ def test_supervisor_can_use_inline_context_files_when_enabled(tmp_path) -> None:
     assert [invocation.tool_name for invocation in result.tool_invocations] == [
         "local_file_context",
         "csv_analysis",
+        "data_computation",
     ]
 
 
@@ -87,6 +89,7 @@ def test_supervisor_uses_explicit_context_files_without_question_path(tmp_path) 
     assert [invocation.tool_name for invocation in result.tool_invocations] == [
         "local_file_context",
         "csv_analysis",
+        "data_computation",
     ]
 
 
@@ -111,8 +114,9 @@ def test_supervisor_records_tool_invocations_for_local_json_analysis(tmp_path) -
     assert [invocation.tool_name for invocation in result.tool_invocations] == [
         "local_file_context",
         "json_analysis",
+        "data_computation",
     ]
-    assert result.traces[0].metadata["tool_invocation_count"] == 2
+    assert result.traces[0].metadata["tool_invocation_count"] == 3
     assert "metrics.json" in result.analysis.summary
 
 

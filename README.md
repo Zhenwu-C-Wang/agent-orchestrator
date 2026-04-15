@@ -2,7 +2,7 @@
 A supervisor-driven multi-agent system where a central orchestrator decomposes tasks, delegates to specialized worker agents, and synthesizes final outputs. Designed for controllability, observability, and production workflows.
 
 ## Status
-This repository now contains a practical local-first orchestration framework with bounded workflow planning, research and analysis paths, tool-backed local and HTTP context analysis, structured outputs, audit persistence, and a minimal Streamlit console.
+This repository now contains a practical local-first orchestration framework with bounded workflow planning, research and analysis paths, tool-backed local and HTTP context analysis, bounded dataset computation, structured outputs, audit persistence, and a minimal Streamlit console.
 The default runner is deterministic for tests and demos, and the same orchestration contract can be switched to Ollama for local model execution.
 
 ## Quickstart
@@ -62,7 +62,7 @@ python main.py "Summarize the most important changes in this data." \
 
 Repeat `--context-file` to attach more than one local file. The Streamlit UI exposes the same capability through the sidebar file uploader.
 
-The bounded analysis toolchain currently understands local CSV and JSON snapshots especially well. For example:
+The bounded analysis toolchain currently understands local CSV and JSON snapshots especially well, including explicit numeric change computation. For example:
 
 ```bash
 python main.py "Summarize the most important changes in this JSON snapshot." \
@@ -233,7 +233,7 @@ Run the same dataset against a local Ollama model:
 python -m orchestrator.acceptance --runner ollama --model qwen2.5:14b
 ```
 
-The dataset includes one tool-backed CSV analysis case and one tool-backed JSON analysis case, both attached as explicit context.
+The dataset includes one tool-backed CSV analysis case and one tool-backed JSON analysis case, both attached as explicit context, and both now exercise bounded numeric computation in addition to schema inspection.
 Use `--output json` if you want the full structured report.
 Add `--with-review` to validate the optional three-stage workflow.
 Add `--report-dir artifacts/acceptance` if you want one persisted acceptance record per run.

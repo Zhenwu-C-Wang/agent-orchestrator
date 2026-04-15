@@ -66,6 +66,7 @@ The current tool path is still bounded and guarded:
 - `local_file_context` reads a bounded preview of explicitly attached local files, or inline file paths only when that opt-in switch is enabled
 - `csv_analysis` computes lightweight CSV structure and numeric summaries
 - `json_analysis` computes lightweight JSON structure, key-path, and numeric-field summaries
+- `data_computation` computes bounded first/last deltas and aggregate metrics for explicit CSV and JSON datasets
 - `http_fetch` fetches a small text preview from explicitly attached URLs, or inline URLs only when that opt-in switch is enabled
 - tool failures stop the workflow instead of silently degrading into an ungrounded analysis
 
@@ -116,6 +117,7 @@ We also validate:
 - local file detection
 - tool invocation recording
 - tool-backed analysis synthesis
+- bounded numeric computation over explicit structured datasets
 - bounded HTTP-backed context analysis through local integration tests
 
 ## User-Facing Surfaces

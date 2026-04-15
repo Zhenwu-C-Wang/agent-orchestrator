@@ -58,7 +58,7 @@ def test_audit_store_lists_and_filters_records(tmp_path) -> None:
     assert store.get_record(latest_record.run_id) is not None
     completed_record = store.latest_record(status="completed")
     assert completed_record is not None
-    assert store.summarize_record(completed_record)["tool_invocation_count"] == 2
+    assert store.summarize_record(completed_record)["tool_invocation_count"] == 3
 
 
 def test_runs_cli_lists_and_shows_records(tmp_path) -> None:
@@ -124,6 +124,6 @@ def test_runs_cli_lists_and_shows_records(tmp_path) -> None:
 
     assert len(listed_payload) == 2
     assert any(entry["workflow_name"] == "analysis_then_write" for entry in listed_payload)
-    assert any(entry["tool_invocation_count"] == 2 for entry in listed_payload)
+    assert any(entry["tool_invocation_count"] == 3 for entry in listed_payload)
     assert shown_payload["run_id"] == latest.run_id
     assert latest_payload["run_id"] == latest.run_id

@@ -93,6 +93,7 @@ def test_cli_outputs_tool_invocations_for_local_csv_analysis(tmp_path) -> None:
     assert [invocation["tool_name"] for invocation in payload["tool_invocations"]] == [
         "local_file_context",
         "csv_analysis",
+        "data_computation",
     ]
 
 
@@ -123,6 +124,7 @@ def test_cli_allows_inline_context_files_when_enabled(tmp_path) -> None:
     assert [invocation["tool_name"] for invocation in payload["tool_invocations"]] == [
         "local_file_context",
         "csv_analysis",
+        "data_computation",
     ]
 
 
@@ -155,6 +157,7 @@ def test_cli_accepts_explicit_context_file_argument(tmp_path) -> None:
     assert [invocation["tool_name"] for invocation in payload["tool_invocations"]] == [
         "local_file_context",
         "csv_analysis",
+        "data_computation",
     ]
 
 
@@ -192,6 +195,7 @@ def test_cli_accepts_explicit_json_context_file_argument(tmp_path) -> None:
     assert [invocation["tool_name"] for invocation in payload["tool_invocations"]] == [
         "local_file_context",
         "json_analysis",
+        "data_computation",
     ]
     assert "metrics.json" in payload["analysis"]["summary"]
 

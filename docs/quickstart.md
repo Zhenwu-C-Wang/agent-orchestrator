@@ -33,6 +33,7 @@ What to look for:
 
 - workflow selection should be `analysis_then_write`
 - `tool_invocations` should include `local_file_context` and `csv_analysis`
+- `tool_invocations` should also include `data_computation`
 - the analysis summary should mention the attached CSV
 
 The same explicit-context path also works for JSON snapshots:
@@ -43,6 +44,11 @@ python main.py "Summarize the most important changes in this JSON snapshot." \
   --context-file docs/sample_data/quarterly_metrics.json \
   --output json
 ```
+
+What to look for in the JSON run:
+
+- `tool_invocations` should include `local_file_context`, `json_analysis`, and `data_computation`
+- the analysis summary should mention computed dataset metrics
 
 Inline file-path and URL discovery is disabled by default. If you want to opt back in, use:
 

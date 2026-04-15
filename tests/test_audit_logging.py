@@ -35,10 +35,11 @@ def test_successful_run_writes_audit_record(tmp_path) -> None:
     assert payload["result"]["review"]["consistent"] is True
     assert payload["result"]["tool_invocations"][0]["tool_name"] == "local_file_context"
     assert payload["result"]["tool_invocations"][1]["tool_name"] == "csv_analysis"
+    assert payload["result"]["tool_invocations"][2]["tool_name"] == "data_computation"
     assert [trace["worker_name"] for trace in payload["traces"]] == ["analysis", "writer", "review"]
     assert all(trace["metadata"]["cache_hit"] is False for trace in payload["traces"])
     assert all(trace["metadata"]["cache_status"] == "miss" for trace in payload["traces"])
-    assert payload["traces"][0]["metadata"]["tool_invocation_count"] == 2
+    assert payload["traces"][0]["metadata"]["tool_invocation_count"] == 3
 
 
 def test_failed_run_writes_failure_audit_record(tmp_path) -> None:

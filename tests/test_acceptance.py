@@ -27,6 +27,7 @@ def test_acceptance_dataset_passes_with_fake_runner() -> None:
     assert [invocation.tool_name for invocation in csv_case.result.tool_invocations] == [
         "local_file_context",
         "csv_analysis",
+        "data_computation",
     ]
     assert "quarterly metrics JSON snapshot" in json_case.question
     assert json_case.result is not None
@@ -34,6 +35,7 @@ def test_acceptance_dataset_passes_with_fake_runner() -> None:
     assert [invocation.tool_name for invocation in json_case.result.tool_invocations] == [
         "local_file_context",
         "json_analysis",
+        "data_computation",
     ]
 
 
@@ -81,10 +83,11 @@ def test_acceptance_cli_writes_report_record(tmp_path) -> None:
     csv_case = payload["case_results"][-2]
     json_case = payload["case_results"][-1]
     assert "quarterly metrics dataset" in csv_case["question"]
-    assert len(csv_case["result"]["tool_invocations"]) == 2
+    assert len(csv_case["result"]["tool_invocations"]) == 3
     assert [invocation["tool_name"] for invocation in json_case["result"]["tool_invocations"]] == [
         "local_file_context",
         "json_analysis",
+        "data_computation",
     ]
     record_payload = json.loads(records[0].read_text(encoding="utf-8"))
     assert record_payload["status"] == "passed"

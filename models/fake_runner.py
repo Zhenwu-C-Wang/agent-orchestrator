@@ -48,6 +48,7 @@ class FakeModelRunner(StructuredModelRunner):
             local_files = tool_context.get("local_files", [])
             csv_summaries = tool_context.get("csv_summaries", [])
             json_summaries = tool_context.get("json_summaries", [])
+            dataset_metrics = tool_context.get("dataset_metrics", [])
             web_pages = tool_context.get("web_pages", [])
             summary = f"Analysis summary for: {question}"
             findings = [
@@ -59,7 +60,7 @@ class FakeModelRunner(StructuredModelRunner):
                 "workflow_path=analysis_then_write",
                 (
                     "tool_invocation_count="
-                    f"{len(local_files) + len(csv_summaries) + len(json_summaries) + len(web_pages)}"
+                    f"{len(local_files) + len(csv_summaries) + len(json_summaries) + len(dataset_metrics) + len(web_pages)}"
                 ),
             ]
             caveats = [
@@ -89,6 +90,22 @@ class FakeModelRunner(StructuredModelRunner):
                         f"fields={len(summary_item['field_names'])},"
                         f"numeric_fields={len(summary_item['numeric_fields'])}"
                     )
+            if dataset_metrics:
+                dataset_names = ", ".join(summary_item["name"] for summary_item in dataset_metrics)
+                summary = f"{summary} Computed bounded dataset metrics for: {dataset_names}."
+                findings.append("Numeric deltas and aggregate stats were computed from structured datasets.")
+                for summary_item in dataset_metrics:
+                    for numeric_field in summary_item["numeric_fields"][:3]:
+                        metric = (
+                            f"{summary_item['name']}:{numeric_field['name']}:"
+                            f"first={numeric_field['first']},"
+                            f"last={numeric_field['last']},"
+                            f"change={numeric_field['absolute_change']},"
+                            f"trend={numeric_field['trend']}"
+                        )
+                        if numeric_field.get("percent_change") is not None:
+                            metric = f"{metric},pct={numeric_field['percent_change']}"
+                        metrics.append(metric)
             if web_pages:
                 urls = ", ".join(page["url"] for page in web_pages)
                 summary = f"{summary} Fetched HTTP context from: {urls}."

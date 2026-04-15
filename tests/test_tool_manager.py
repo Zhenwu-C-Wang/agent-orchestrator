@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from tools.csv_analysis_tool import CSVAnalysisTool
+from tools.data_computation_tool import DataComputationTool
 from tools.errors import ConfigurationError, ToolExecutionError
 from tools.http_fetch_tool import HttpFetchTool
 from tools.json_analysis_tool import JSONAnalysisTool
@@ -132,6 +133,62 @@ def test_tool_manager_runs_json_analysis_tool(tmp_path: Path) -> None:
         "active_users",
         "churn_rate",
     ]
+
+
+def test_data_computation_tool_summarizes_csv_trends(tmp_path: Path) -> None:
+    csv_path = tmp_path / "metrics.csv"
+    csv_path.write_text(
+        "quarter,revenue,active_users,churn_rate\n2024-Q1,120,400,0.08\n2024-Q2,135,430,0.07\n2024-Q3,150,470,0.06\n",
+        encoding="utf-8",
+    )
+
+    manager = ToolManager(
+        tools=[DataComputationTool()],
+    )
+
+    context, invocations = manager.run_for_task(
+        task_type="analysis",
+        question="Analyze this dataset and compute the biggest changes.",
+        explicit_paths=[csv_path],
+    )
+
+    assert [invocation.tool_name for invocation in invocations] == ["data_computation"]
+    revenue = context["dataset_metrics"][0]["numeric_fields"][0]
+    assert context["dataset_metrics"][0]["label_field"] == "quarter"
+    assert revenue["name"] == "revenue"
+    assert revenue["absolute_change"] == 30.0
+    assert revenue["percent_change"] == 25.0
+    assert revenue["trend"] == "up"
+
+
+def test_data_computation_tool_summarizes_json_trends(tmp_path: Path) -> None:
+    json_path = tmp_path / "metrics.json"
+    json_path.write_text(
+        (
+            '[{"quarter":"2024-Q1","revenue":120,"active_users":400,"churn_rate":0.08},'
+            '{"quarter":"2024-Q2","revenue":135,"active_users":430,"churn_rate":0.07}]'
+        ),
+        encoding="utf-8",
+    )
+
+    manager = ToolManager(
+        tools=[DataComputationTool()],
+    )
+
+    context, invocations = manager.run_for_task(
+        task_type="analysis",
+        question="Analyze this JSON snapshot and compute the biggest changes.",
+        explicit_paths=[json_path],
+    )
+
+    assert [invocation.tool_name for invocation in invocations] == ["data_computation"]
+    revenue = context["dataset_metrics"][0]["numeric_fields"][0]
+    assert context["dataset_metrics"][0]["format"] == "json"
+    assert context["dataset_metrics"][0]["top_level_type"] == "array"
+    assert revenue["first"] == 120.0
+    assert revenue["last"] == 135.0
+    assert revenue["absolute_change"] == 15.0
+    assert revenue["trend"] == "up"
 
 
 def test_tool_manager_allows_inline_urls_when_enabled(monkeypatch) -> None:

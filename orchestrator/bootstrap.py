@@ -12,6 +12,7 @@ from schemas.result_schema import WorkflowResult
 from tools.audit import AuditLogger
 from tools.cache import StructuredResultCache
 from tools.csv_analysis_tool import CSVAnalysisTool
+from tools.data_computation_tool import DataComputationTool
 from tools.errors import ConfigurationError
 from tools.http_fetch_tool import HttpFetchTool
 from tools.json_analysis_tool import JSONAnalysisTool
@@ -81,6 +82,7 @@ def build_supervisor(
             LocalFileContextTool(),
             CSVAnalysisTool(),
             JSONAnalysisTool(),
+            DataComputationTool(),
             HttpFetchTool(),
         ],
         allow_question_file_paths=allow_inline_context_files,
