@@ -19,8 +19,9 @@ def test_acceptance_dataset_passes_with_fake_runner() -> None:
     assert report.total_cases == len(ACCEPTANCE_QUESTIONS)
     assert report.failed_cases == 0
     assert all(case.passed for case in report.case_results)
-    csv_case = report.case_results[-2]
-    json_case = report.case_results[-1]
+    csv_case = next(case for case in report.case_results if "quarterly metrics dataset and summarize" in case.question)
+    hybrid_case = next(case for case in report.case_results if "prioritize next" in case.question)
+    json_case = next(case for case in report.case_results if "quarterly metrics JSON snapshot" in case.question)
     assert "quarterly metrics dataset" in csv_case.question
     assert csv_case.result is not None
     assert csv_case.result.workflow_plan.metadata["context_file_count"] == 1
@@ -28,6 +29,13 @@ def test_acceptance_dataset_passes_with_fake_runner() -> None:
         "local_file_context",
         "csv_analysis",
         "data_computation",
+    ]
+    assert hybrid_case.result is not None
+    assert hybrid_case.result.workflow_plan.workflow_name == "research_then_analysis_then_write"
+    assert [trace.worker_name for trace in hybrid_case.result.traces] == [
+        "research",
+        "analysis",
+        "writer",
     ]
     assert "quarterly metrics JSON snapshot" in json_case.question
     assert json_case.result is not None
@@ -80,10 +88,12 @@ def test_acceptance_cli_writes_report_record(tmp_path) -> None:
 
     assert payload["failed_cases"] == 0
     assert len(records) == 1
-    csv_case = payload["case_results"][-2]
-    json_case = payload["case_results"][-1]
+    csv_case = next(case for case in payload["case_results"] if "quarterly metrics dataset and summarize" in case["question"])
+    hybrid_case = next(case for case in payload["case_results"] if "prioritize next" in case["question"])
+    json_case = next(case for case in payload["case_results"] if "quarterly metrics JSON snapshot" in case["question"])
     assert "quarterly metrics dataset" in csv_case["question"]
     assert len(csv_case["result"]["tool_invocations"]) == 3
+    assert hybrid_case["result"]["workflow_plan"]["workflow_name"] == "research_then_analysis_then_write"
     assert [invocation["tool_name"] for invocation in json_case["result"]["tool_invocations"]] == [
         "local_file_context",
         "json_analysis",

@@ -31,6 +31,10 @@ ACCEPTANCE_CASES = [
         context_files=(ACCEPTANCE_SAMPLE_CSV,),
     ),
     AcceptanceCaseDefinition(
+        "Analyze the bundled quarterly metrics dataset and recommend what we should prioritize next.",
+        context_files=(ACCEPTANCE_SAMPLE_CSV,),
+    ),
+    AcceptanceCaseDefinition(
         "Analyze the bundled quarterly metrics JSON snapshot and summarize the most important changes.",
         context_files=(ACCEPTANCE_SAMPLE_JSON,),
     ),
@@ -52,14 +56,14 @@ def evaluate_result(result: WorkflowResult, *, expect_review: bool) -> tuple[lis
             errors.append("Research summary is empty.")
         if not result.research.key_points:
             errors.append("Research key_points are empty.")
-        intermediate_points = list(result.research.key_points)
-    elif result.analysis is not None:
+        intermediate_points.extend(result.research.key_points)
+    if result.analysis is not None:
         if not _has_content(result.analysis.summary):
             errors.append("Analysis summary is empty.")
         if not result.analysis.findings:
             errors.append("Analysis findings are empty.")
-        intermediate_points = list(result.analysis.findings)
-    else:
+        intermediate_points.extend(result.analysis.findings)
+    if result.research is None and result.analysis is None:
         errors.append("No intermediate worker result was returned.")
     if not _has_content(result.final_answer.answer):
         errors.append("Final answer is empty.")

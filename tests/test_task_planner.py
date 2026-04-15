@@ -67,3 +67,18 @@ def test_task_planner_uses_analysis_workflow_for_explicit_context_urls() -> None
     assert [step.worker_name for step in plan.steps] == ["analysis", "writer"]
     assert plan.metadata["has_context_urls"] is True
     assert plan.metadata["context_url_count"] == 1
+
+
+def test_task_planner_uses_hybrid_workflow_for_advisory_requests_with_context_files(tmp_path) -> None:
+    notes = tmp_path / "metrics.csv"
+    notes.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+
+    plan = TaskPlanner().build_plan(
+        "Analyze this dataset and recommend what we should prioritize next.",
+        context_files=[str(notes)],
+    )
+
+    assert plan.workflow_name == "research_then_analysis_then_write"
+    assert [step.worker_name for step in plan.steps] == ["research", "analysis", "writer"]
+    assert plan.metadata["question_type"] == "hybrid"
+    assert plan.metadata["requires_research_support"] is True

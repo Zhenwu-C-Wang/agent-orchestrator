@@ -17,6 +17,9 @@ class TaskRouter:
                 "question": question,
                 "context_files": list(context.get("context_files", [])),
                 "context_urls": list(context.get("context_urls", [])),
+                "research": (
+                    context["research"].model_dump() if "research" in context else None
+                ),
             }
         if step.task_type is TaskType.WRITING:
             return {

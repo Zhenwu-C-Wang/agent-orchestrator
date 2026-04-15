@@ -48,6 +48,7 @@ class AnalysisWorker(BaseWorker[AnalysisTaskInput, AnalysisResult]):
         request = self.prompt_manager.build_analysis_request_with_tools(
             validated_input.question,
             tool_context=tool_context,
+            research=validated_input.research,
         )
         try:
             return self.runner.generate_structured(request, self.output_model)

@@ -58,7 +58,25 @@ python main.py "Analyze \`docs/sample_data/quarterly_metrics.csv\` and summarize
   --allow-inline-context-files
 ```
 
-## 3. URL-Backed Analysis Workflow
+## 3. Hybrid Advisory Workflow
+
+Use explicit structured context together with an advisory question when you want the planner to combine prior reasoning and tool-backed analysis:
+
+```bash
+python main.py "Analyze this dataset and recommend what we should prioritize next." \
+  --runner fake \
+  --context-file docs/sample_data/quarterly_metrics.csv \
+  --output json
+```
+
+What to look for:
+
+- workflow selection should be `research_then_analysis_then_write`
+- traces should run in the order `research`, `analysis`, `writer`
+- `tool_invocations` should still include `local_file_context`, `csv_analysis`, and `data_computation`
+- the JSON result should contain both `research` and `analysis` blocks before the final answer
+
+## 4. URL-Backed Analysis Workflow
 
 Attach one or more URLs explicitly when you want the analysis path to ground itself in fetched page content:
 
@@ -77,7 +95,7 @@ What to look for:
 
 The Streamlit sidebar exposes the same capability through a multiline URL input.
 
-## 4. Persist And Inspect A Run
+## 5. Persist And Inspect A Run
 
 Write audit output while running a workflow:
 
@@ -96,7 +114,7 @@ python -m orchestrator.runs --audit-dir artifacts/runs list
 python -m orchestrator.runs --audit-dir artifacts/runs latest --output json
 ```
 
-## 5. Run The Acceptance Dataset
+## 6. Run The Acceptance Dataset
 
 Run the full acceptance suite locally:
 
@@ -104,12 +122,13 @@ Run the full acceptance suite locally:
 python -m orchestrator.acceptance --runner fake
 ```
 
-The current dataset includes:
+The current 8-case dataset includes:
 
 - research-style orchestration cases
 - review coverage when `--with-review` is enabled
 - one tool-backed CSV analysis case
 - one tool-backed JSON analysis case
+- one hybrid advisory-plus-context case
 
 Persist a report if you want later comparison:
 
@@ -118,7 +137,7 @@ python -m orchestrator.acceptance --runner fake --report-dir artifacts/acceptanc
 python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance compare
 ```
 
-## 6. Use The Streamlit Console
+## 7. Use The Streamlit Console
 
 Launch the local UI:
 

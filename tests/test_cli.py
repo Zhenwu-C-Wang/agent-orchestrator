@@ -228,6 +228,36 @@ def test_cli_accepts_explicit_context_url_argument() -> None:
     assert payload["tool_invocations"][0]["status"] == "completed"
 
 
+def test_cli_routes_advisory_context_request_to_hybrid_workflow(tmp_path) -> None:
+    csv_path = tmp_path / "metrics.csv"
+    csv_path.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "main.py",
+            "Analyze this dataset and recommend what we should prioritize next.",
+            "--runner",
+            "fake",
+            "--context-file",
+            str(csv_path),
+            "--output",
+            "json",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(completed.stdout)
+
+    assert payload["workflow_plan"]["workflow_name"] == "research_then_analysis_then_write"
+    assert payload["research"] is not None
+    assert payload["analysis"] is not None
+    assert [trace["worker_name"] for trace in payload["traces"]] == ["research", "analysis", "writer"]
+
+
 def test_cli_outputs_markdown_workflow_result() -> None:
     completed = subprocess.run(
         [

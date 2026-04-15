@@ -31,6 +31,24 @@ def test_supervisor_routes_analysis_requests_to_analysis_worker() -> None:
     assert [trace.worker_name for trace in result.traces] == ["analysis", "writer"]
 
 
+def test_supervisor_routes_advisory_context_requests_to_hybrid_workflow(tmp_path) -> None:
+    csv_path = tmp_path / "sales.csv"
+    csv_path.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake")
+
+    result = supervisor.run_with_context(
+        "Analyze this dataset and recommend what we should prioritize next.",
+        context_files=[str(csv_path)],
+    )
+
+    assert result.research is not None
+    assert result.analysis is not None
+    assert result.workflow_plan.workflow_name == "research_then_analysis_then_write"
+    assert [trace.worker_name for trace in result.traces] == ["research", "analysis", "writer"]
+    assert "Incorporated prior research context" in result.analysis.summary
+
+
 def test_supervisor_records_tool_invocations_for_local_csv_analysis(tmp_path) -> None:
     csv_path = tmp_path / "sales.csv"
     csv_path.write_text("month,revenue\nJan,10\nFeb,12\nMar,15\n", encoding="utf-8")

@@ -44,6 +44,7 @@ class FakeModelRunner(StructuredModelRunner):
             return response_model.model_validate(payload)
 
         if response_model is AnalysisResult:
+            research = request.payload.get("research")
             tool_context = request.payload.get("tool_context") or {}
             local_files = tool_context.get("local_files", [])
             csv_summaries = tool_context.get("csv_summaries", [])
@@ -67,6 +68,10 @@ class FakeModelRunner(StructuredModelRunner):
                 "This analysis output is deterministic and does not execute real code.",
                 "Real tool-backed analysis will require stronger validation around inputs and outputs.",
             ]
+            if research is not None:
+                summary = f"{summary} Incorporated prior research context."
+                findings.append("Prior research context was incorporated before tool-backed analysis.")
+                metrics.append(f"research_key_point_count={len(research['key_points'])}")
             if local_files:
                 inspected = ", ".join(file_info["name"] for file_info in local_files)
                 summary = f"{summary} Inspected local file context from: {inspected}."
@@ -127,7 +132,21 @@ class FakeModelRunner(StructuredModelRunner):
         if response_model is FinalAnswer:
             research = request.payload.get("research")
             analysis = request.payload.get("analysis")
-            if research is not None:
+            if research is not None and analysis is not None:
+                supporting_points = list(dict.fromkeys(
+                    list(research["key_points"]) + list(analysis["findings"])
+                ))
+                limitations = list(dict.fromkeys(
+                    list(research["caveats"]) + list(analysis["caveats"])
+                ))
+                recommendation = (
+                    "Recommended next step: combine broader research framing with the explicit "
+                    "analysis evidence before deciding what to do next."
+                )
+                answer = (
+                    f"{research['summary']} {analysis['summary']} {recommendation}"
+                )
+            elif research is not None:
                 summary = research["summary"]
                 supporting_points = list(research["key_points"])
                 limitations = list(research["caveats"])
@@ -143,12 +162,13 @@ class FakeModelRunner(StructuredModelRunner):
                     "Recommended next step: connect a guarded tool path so analysis "
                     "requests can inspect local data directly."
                 )
+                answer = f"{summary} {recommendation}"
             else:
                 raise ValueError("Fake writer payload requires research or analysis.")
             limitations.append("The fake runner proves the orchestration contract, not model quality.")
             payload = {
                 "question": question,
-                "answer": f"{summary} {recommendation}",
+                "answer": answer if research is not None and analysis is not None else f"{summary} {recommendation}",
                 "supporting_points": supporting_points,
                 "limitations": limitations,
             }
@@ -168,7 +188,7 @@ class FakeModelRunner(StructuredModelRunner):
                 "consistent": True,
                 "verdict": "The final answer remains aligned with the intermediate worker output.",
                 "issues": [],
-                "checked_points": checked_points,
+                "checked_points": list(dict.fromkeys(checked_points)),
             }
             return response_model.model_validate(payload)
 
