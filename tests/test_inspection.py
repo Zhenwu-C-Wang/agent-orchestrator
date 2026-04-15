@@ -1,8 +1,18 @@
 from __future__ import annotations
 
-from orchestrator.inspection import build_plan_guidance, build_result_overview
-from orchestrator.planner import TaskPlanner
+import json
+from datetime import datetime, timedelta, timezone
 
+from schemas.acceptance_schema import AcceptanceCaseResult, AcceptanceReport
+from orchestrator.inspection import (
+    build_acceptance_overview,
+    build_cache_overview,
+    build_plan_guidance,
+    build_result_overview,
+)
+from orchestrator.planner import TaskPlanner
+from tools.acceptance import AcceptanceLogger, AcceptanceStore
+from tools.cache import StructuredResultCache
 from main import build_supervisor
 
 
@@ -94,3 +104,95 @@ def test_result_overview_highlights_comparison_workflow(tmp_path) -> None:
     assert overview.headline == "Comparison Route Inspection"
     assert any("Comparison captured" in item for item in overview.highlights)
     assert any("broader hybrid comparison route" in item for item in overview.next_actions)
+
+
+def test_acceptance_overview_highlights_regressions(tmp_path) -> None:
+    logger = AcceptanceLogger(tmp_path, metadata={"source": "test"})
+    logger.record_report(
+        AcceptanceReport(
+            runner="fake",
+            model=None,
+            enable_review=False,
+            total_cases=2,
+            passed_cases=2,
+            failed_cases=0,
+            case_results=[
+                AcceptanceCaseResult(
+                    question="How should I bootstrap a supervisor-worker agent system?",
+                    passed=True,
+                    duration_ms=5,
+                ),
+                AcceptanceCaseResult(
+                    question="What risks appear when a supervisor directly writes the final answer?",
+                    passed=True,
+                    duration_ms=5,
+                ),
+            ],
+        )
+    )
+    logger.record_report(
+        AcceptanceReport(
+            runner="fake",
+            model=None,
+            enable_review=False,
+            total_cases=2,
+            passed_cases=1,
+            failed_cases=1,
+            case_results=[
+                AcceptanceCaseResult(
+                    question="How should I bootstrap a supervisor-worker agent system?",
+                    passed=False,
+                    duration_ms=7,
+                    errors=["writer drifted from research"],
+                    warnings=["review gap"],
+                ),
+                AcceptanceCaseResult(
+                    question="What risks appear when a supervisor directly writes the final answer?",
+                    passed=True,
+                    duration_ms=5,
+                ),
+            ],
+        )
+    )
+
+    store = AcceptanceStore(tmp_path)
+    current = store.latest_record()
+    assert current is not None
+    baseline = store.previous_record(current.run_id)
+    assert baseline is not None
+
+    overview = build_acceptance_overview(
+        current,
+        comparison=store.compare_records(current, baseline),
+    )
+
+    assert overview.headline == "Acceptance Report"
+    assert any(metric.label == "Passed" and metric.value == "1/2" for metric in overview.metrics)
+    assert any("regressions" in warning.lower() for warning in overview.warnings)
+    assert overview.changed_case_rows[0]["regression"] is True
+
+
+def test_cache_overview_warns_about_expired_entries(tmp_path) -> None:
+    cache_dir = tmp_path / "cache"
+    supervisor = build_supervisor(
+        runner_name="fake",
+        enable_review=True,
+        cache_dir=str(cache_dir),
+    )
+    supervisor.run("How should I bootstrap a supervisor-worker system?")
+
+    aged_timestamp = (datetime.now(timezone.utc) - timedelta(seconds=120)).isoformat()
+    for path in cache_dir.glob("*.json"):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["created_at"] = aged_timestamp
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    cache = StructuredResultCache(cache_dir, max_age_seconds=60)
+    overview = build_cache_overview(
+        cache.summarize_cache(),
+        recent_entries=[cache.summarize_entry(entry) for entry in cache.list_entries(limit=5)],
+    )
+
+    assert overview.headline == "Cache Health"
+    assert any(metric.label == "Expired" and metric.value == "3" for metric in overview.metrics)
+    assert any("Expired cache entries are present" in warning for warning in overview.warnings)

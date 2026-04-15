@@ -2,18 +2,18 @@
   "current_phase": "Phase 1 (Practical V1)",
   "current_milestone": "M3: Usability Baseline",
   "next_milestone": "Phase 2: Dynamic Workflows",
-  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, and a guided Streamlit inspection UI. The current push is to keep broadening routing without dropping bounded controls.",
+  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, and a guided Streamlit inspection UI that also surfaces acceptance and cache health. The current push is to keep broadening routing without dropping bounded controls.",
   "completed_items": [
     "Closed-loop supervisor orchestration with research, writing, and optional review stages",
     "Bounded workflow planning that routes between research, analysis, comparison, and hybrid advisory/context requests",
     "Structured workflow output with pretty, JSON, and Markdown renderers",
     "Local tool integration with file preview, CSV analysis, JSON analysis, bounded dataset computation, and bounded HTTP fetch adapters",
     "Local audit persistence, acceptance reporting, request cache, and retry plumbing",
-    "Guided Streamlit inspection for task input, plan preview, route warnings, intermediate results, recent runs, and result export"
+    "Guided Streamlit inspection for task input, plan preview, route warnings, intermediate results, recent runs, acceptance reports, cache health, and result export"
   ],
   "next_items": [
     "Continue broadening workflow planning beyond the current five bounded templates",
     "Add more guarded domain-specific analysis tools on top of the structured data path",
-    "Extend guided inspection to acceptance and cache surfaces"
+    "Add deeper drill-downs for individual acceptance cases and cache entries"
   ]
 }

@@ -175,3 +175,4 @@ The UI is useful when you want to:
 - inspect overview, intermediates, tools, traces, and exports in separate guided tabs after execution
 - export JSON, Markdown, or text summaries
 - review recent persisted runs with the same inspection summary if an audit directory is configured
+- inspect persisted acceptance reports and local cache health from the same console when those directories are configured

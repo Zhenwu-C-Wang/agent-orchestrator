@@ -8,11 +8,18 @@ from pathlib import Path
 import streamlit as st
 
 from orchestrator.bootstrap import build_supervisor, format_markdown, format_pretty
-from orchestrator.inspection import build_plan_guidance, build_result_overview
+from orchestrator.inspection import (
+    build_acceptance_overview,
+    build_cache_overview,
+    build_plan_guidance,
+    build_result_overview,
+)
 from orchestrator.planner import TaskPlanner
 from orchestrator.project_status import load_project_status
 from schemas.result_schema import WorkflowResult
+from tools.acceptance import AcceptanceStore
 from tools.audit import AuditStore
+from tools.cache import StructuredResultCache
 
 DEFAULT_QUESTION = "How should I bootstrap a supervisor-worker agent system?"
 
@@ -261,6 +268,58 @@ def _render_project_status() -> None:
             st.write(f"- {item}")
 
 
+def _render_acceptance_reports(report_dir: str) -> None:
+    st.subheader("Acceptance Reports")
+    store = AcceptanceStore(report_dir)
+    records = store.list_records(limit=5)
+    if not records:
+        st.info("No persisted acceptance reports found yet.")
+        return
+
+    rows = [store.summarize_record(record) for record in records]
+    st.dataframe(rows, use_container_width=True)
+
+    selected_run_id = st.selectbox(
+        "Inspect acceptance run",
+        options=[record.run_id for record in records],
+        format_func=lambda run_id: next(
+            (
+                f"{record.run_id} | {record.status} | {record.report.runner}"
+                for record in records
+                if record.run_id == run_id
+            ),
+            run_id,
+        ),
+    )
+    selected = store.get_record(selected_run_id)
+    if selected is None:
+        return
+
+    baseline = store.previous_record(selected.run_id)
+    comparison = store.compare_records(selected, baseline) if baseline is not None else None
+    overview = build_acceptance_overview(selected, comparison=comparison)
+
+    with st.expander("Selected Acceptance Detail"):
+        st.markdown(f"**{overview.headline}**")
+        st.caption(overview.summary)
+        _render_metrics(overview.metrics)
+        if overview.highlights:
+            st.markdown("**Highlights**")
+            for item in overview.highlights:
+                st.write(f"- {item}")
+        if overview.warnings:
+            st.markdown("**Warnings**")
+            for item in overview.warnings:
+                st.warning(item)
+        if overview.next_actions:
+            st.markdown("**Next Actions**")
+            for item in overview.next_actions:
+                st.write(f"- {item}")
+        if overview.changed_case_rows:
+            st.markdown("**Changed Cases**")
+            st.dataframe(overview.changed_case_rows, use_container_width=True, hide_index=True)
+
+
 def _render_recent_runs(audit_dir: str) -> None:
     st.subheader("Recent Runs")
     store = AuditStore(audit_dir)
@@ -311,6 +370,38 @@ def _render_recent_runs(audit_dir: str) -> None:
             st.error(selected.error)
 
 
+def _render_cache_snapshot(cache_dir: str, cache_max_age_seconds: float | None) -> None:
+    st.subheader("Cache Health")
+    cache = StructuredResultCache(
+        cache_dir,
+        max_age_seconds=cache_max_age_seconds,
+    )
+    recent_entries = [cache.summarize_entry(entry) for entry in cache.list_entries(limit=5)]
+    overview = build_cache_overview(
+        cache.summarize_cache(),
+        recent_entries=recent_entries,
+    )
+
+    st.markdown(f"**{overview.headline}**")
+    st.caption(overview.summary)
+    _render_metrics(overview.metrics)
+    if overview.highlights:
+        st.markdown("**Highlights**")
+        for item in overview.highlights:
+            st.write(f"- {item}")
+    if overview.warnings:
+        st.markdown("**Warnings**")
+        for item in overview.warnings:
+            st.warning(item)
+    if overview.next_actions:
+        st.markdown("**Next Actions**")
+        for item in overview.next_actions:
+            st.write(f"- {item}")
+    if overview.recent_entry_rows:
+        st.markdown("**Recent Entries**")
+        st.dataframe(overview.recent_entry_rows, use_container_width=True, hide_index=True)
+
+
 def main() -> None:
     st.set_page_config(page_title="Agent Orchestrator", layout="wide")
     st.title("Agent Orchestrator")
@@ -345,6 +436,10 @@ def main() -> None:
             help="One URL per line.",
         )
         audit_dir = st.text_input("Audit directory", value="artifacts/runs")
+        acceptance_report_dir = st.text_input(
+            "Acceptance report directory",
+            value="artifacts/acceptance",
+        )
         cache_dir = st.text_input("Cache directory", value="")
         cache_max_age_seconds = st.number_input(
             "Cache TTL seconds",
@@ -388,13 +483,28 @@ def main() -> None:
         st.write(f"Attached context files: `{len(context_files)}`")
         st.write(f"Attached context URLs: `{len(context_urls)}`")
         st.write(f"Audit dir: `{audit_dir or 'disabled'}`")
+        st.write(f"Acceptance report dir: `{acceptance_report_dir or 'disabled'}`")
         st.write(f"Cache dir: `{cache_dir or 'disabled'}`")
     with settings_right:
-        if audit_dir:
-            _render_recent_runs(audit_dir)
-        else:
-            st.subheader("Recent Runs")
-            st.info("Set an audit directory to enable persisted run history.")
+        runs_tab, acceptance_tab, cache_tab = st.tabs(["Runs", "Acceptance", "Cache"])
+        with runs_tab:
+            if audit_dir:
+                _render_recent_runs(audit_dir)
+            else:
+                st.subheader("Recent Runs")
+                st.info("Set an audit directory to enable persisted run history.")
+        with acceptance_tab:
+            if acceptance_report_dir:
+                _render_acceptance_reports(acceptance_report_dir)
+            else:
+                st.subheader("Acceptance Reports")
+                st.info("Set an acceptance report directory to inspect persisted acceptance runs.")
+        with cache_tab:
+            if cache_dir:
+                _render_cache_snapshot(cache_dir, float(cache_max_age_seconds))
+            else:
+                st.subheader("Cache Health")
+                st.info("Set a cache directory to inspect local cache health.")
 
     if st.button("Run Workflow", type="primary", use_container_width=True):
         st.session_state["last_error"] = None
@@ -460,7 +570,8 @@ def main() -> None:
     st.divider()
     st.caption(
         "Start the UI with `streamlit run app.py`. "
-        "If you want persisted run history, provide an audit directory in the sidebar."
+        "If you want persisted run history, acceptance report inspection, or cache health snapshots, "
+        "configure the corresponding directories in the sidebar."
     )
 
 

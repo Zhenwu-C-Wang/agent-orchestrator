@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
+from schemas.acceptance_schema import AcceptanceComparison, AcceptanceRecord
 from schemas.result_schema import WorkflowResult
 from schemas.task_schema import WorkflowPlan
 
@@ -37,6 +39,28 @@ class ResultOverview:
     metrics: list[InspectionMetric] = field(default_factory=list)
     highlights: list[str] = field(default_factory=list)
     next_actions: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class AcceptanceOverview:
+    headline: str
+    summary: str
+    metrics: list[InspectionMetric] = field(default_factory=list)
+    highlights: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    next_actions: list[str] = field(default_factory=list)
+    changed_case_rows: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class CacheOverview:
+    headline: str
+    summary: str
+    metrics: list[InspectionMetric] = field(default_factory=list)
+    highlights: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    next_actions: list[str] = field(default_factory=list)
+    recent_entry_rows: list[dict[str, Any]] = field(default_factory=list)
 
 
 def build_plan_guidance(plan: WorkflowPlan, *, question: str) -> PlanGuidance:
@@ -205,6 +229,147 @@ def build_result_overview(result: WorkflowResult) -> ResultOverview:
         metrics=metrics,
         highlights=highlights,
         next_actions=_dedupe_preserve_order(next_actions),
+    )
+
+
+def build_acceptance_overview(
+    record: AcceptanceRecord,
+    *,
+    comparison: AcceptanceComparison | None = None,
+) -> AcceptanceOverview:
+    warning_count = sum(len(case.warnings) for case in record.report.case_results)
+    duration_ms = sum(case.duration_ms for case in record.report.case_results)
+    failed_questions = [case.question for case in record.report.case_results if not case.passed]
+    highlighted_failures = failed_questions[:3]
+    metrics = [
+        InspectionMetric("Passed", f"{record.report.passed_cases}/{record.report.total_cases}"),
+        InspectionMetric("Failed", str(record.report.failed_cases)),
+        InspectionMetric("Warnings", str(warning_count)),
+        InspectionMetric("Duration", _format_duration(duration_ms)),
+    ]
+    summary = (
+        f"This acceptance run finished with status `{record.status}` on runner `{record.report.runner}`."
+    )
+    if comparison is not None:
+        summary = (
+            f"{summary} Baseline comparison shows {comparison.regression_count} regression(s) "
+            f"and {comparison.improvement_count} improvement(s)."
+        )
+
+    highlights = [
+        f"Review was {'enabled' if record.report.enable_review else 'disabled'} for this run.",
+        f"The report covers {record.report.total_cases} acceptance case(s).",
+    ]
+    if highlighted_failures:
+        highlights.append(
+            f"Failed case sample: {', '.join(highlighted_failures)}."
+        )
+    if record.report.model is not None:
+        highlights.append(f"Model: {record.report.model}.")
+
+    warnings: list[str] = []
+    if record.report.failed_cases > 0:
+        warnings.append("This acceptance run has failing cases and should not be treated as a clean baseline.")
+    if comparison is not None and comparison.regression_count > 0:
+        warnings.append("The baseline comparison detected regressions in one or more acceptance cases.")
+    if comparison is not None and comparison.warning_count_delta > 0:
+        warnings.append("The current run produced more warnings than the selected baseline.")
+
+    next_actions: list[str] = []
+    if record.report.failed_cases > 0:
+        next_actions.append("Inspect the failing acceptance cases before promoting this run or using it as a baseline.")
+    if comparison is None:
+        next_actions.append("Persist another acceptance report if you want baseline comparisons in this inspection view.")
+    elif comparison.regression_count > 0:
+        next_actions.append("Address the regressed cases before treating this run as an improvement over the baseline.")
+    elif comparison.improvement_count > 0:
+        next_actions.append("Keep the baseline around for one more run if you want to verify that the improvements hold.")
+    else:
+        next_actions.append("The baseline comparison is stable; use a newer workload if you want to increase coverage.")
+
+    changed_case_rows: list[dict[str, Any]] = []
+    if comparison is not None:
+        changed_case_rows = [
+            {
+                "question": case.question,
+                "baseline_passed": case.baseline_passed,
+                "current_passed": case.current_passed,
+                "baseline_warnings": case.baseline_warning_count,
+                "current_warnings": case.current_warning_count,
+                "regression": case.regression,
+                "improvement": case.improvement,
+            }
+            for case in comparison.case_comparisons
+            if case.changed
+        ]
+
+    return AcceptanceOverview(
+        headline="Acceptance Report",
+        summary=summary,
+        metrics=metrics,
+        highlights=highlights,
+        warnings=warnings,
+        next_actions=_dedupe_preserve_order(next_actions),
+        changed_case_rows=changed_case_rows,
+    )
+
+
+def build_cache_overview(
+    summary: dict[str, Any],
+    *,
+    recent_entries: list[dict[str, Any]],
+) -> CacheOverview:
+    total_entries = int(summary.get("total_entries", 0))
+    expired_entries = int(summary.get("expired_entries", 0))
+    active_entries = int(summary.get("active_entries", 0))
+    max_age_seconds = summary.get("max_age_seconds")
+    metrics = [
+        InspectionMetric("Total", str(total_entries)),
+        InspectionMetric("Active", str(active_entries)),
+        InspectionMetric("Expired", str(expired_entries)),
+        InspectionMetric("TTL", str(max_age_seconds) if max_age_seconds is not None else "Off"),
+    ]
+
+    summary_text = (
+        "This cache snapshot summarizes the local structured-result cache used by the active runner configuration."
+    )
+    task_types = sorted(
+        {
+            str(entry.get("task_type") or "n/a")
+            for entry in recent_entries
+        }
+    )
+    highlights: list[str] = []
+    if recent_entries:
+        highlights.append(f"Recent entries cover {len(task_types)} task type(s): {', '.join(task_types)}.")
+        highlights.append(f"Most recent cache entry: {recent_entries[0]['created_at']}.")
+    else:
+        highlights.append("No cache entries are currently available in this directory.")
+
+    warnings: list[str] = []
+    if expired_entries > 0:
+        warnings.append("Expired cache entries are present. Prune them if you want an accurate active snapshot.")
+    if total_entries == 0:
+        warnings.append("The cache is empty, so this surface cannot yet show reuse patterns.")
+
+    next_actions: list[str] = []
+    if total_entries == 0:
+        next_actions.append("Run a workflow with caching enabled to populate this inspection view.")
+    if max_age_seconds is None:
+        next_actions.append("Configure a cache TTL if you want expiry and prune guidance in this view.")
+    elif expired_entries > 0:
+        next_actions.append("Run the cache prune command to remove expired entries before relying on hit rates.")
+    else:
+        next_actions.append("The cache is healthy; compare runner and task-type spread if you want to tune reuse.")
+
+    return CacheOverview(
+        headline="Cache Health",
+        summary=summary_text,
+        metrics=metrics,
+        highlights=highlights,
+        warnings=warnings,
+        next_actions=_dedupe_preserve_order(next_actions),
+        recent_entry_rows=recent_entries,
     )
 
 

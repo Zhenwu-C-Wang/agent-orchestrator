@@ -135,7 +135,7 @@ The current system is usable through:
 - `orchestrator.runs` for audit inspection
 - `orchestrator.acceptance` and `orchestrator.acceptance_runs` for validation workflows
 - `orchestrator.cache` for cache inspection and maintenance
-- `app.py` for a guided Streamlit console with workflow preview, route warnings, run history, inspection tabs, and result export
+- `app.py` for a guided Streamlit console with workflow preview, route warnings, run history, acceptance and cache inspection, and result export
 
 ## What Is Deliberately Missing
 
