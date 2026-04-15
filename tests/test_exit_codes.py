@@ -96,7 +96,7 @@ def test_acceptance_cli_returns_acceptance_failed_exit_code() -> None:
 
     assert completed.returncode == 8
     assert "acceptance-failed:" in completed.stderr
-    assert "Passed: 0/5" in completed.stdout
+    assert "Passed: 0/6" in completed.stdout
 
 
 def test_cache_cli_returns_cache_query_exit_code_when_prune_lacks_ttl(tmp_path) -> None:
