@@ -44,22 +44,42 @@ class FakeModelRunner(StructuredModelRunner):
             return response_model.model_validate(payload)
 
         if response_model is AnalysisResult:
+            tool_context = request.payload.get("tool_context") or {}
+            local_files = tool_context.get("local_files", [])
+            csv_summaries = tool_context.get("csv_summaries", [])
+            summary = f"Analysis summary for: {question}"
+            findings = [
+                "Start with a narrow analysis objective before adding more tooling.",
+                "Keep derived findings structured so downstream synthesis can stay deterministic.",
+                "Expose caveats whenever the analysis depends on local or incomplete context.",
+            ]
+            metrics = [
+                "workflow_path=analysis_then_write",
+                f"tool_invocation_count={len(local_files) + len(csv_summaries)}",
+            ]
+            caveats = [
+                "This analysis output is deterministic and does not execute real code.",
+                "Real tool-backed analysis will require stronger validation around inputs and outputs.",
+            ]
+            if local_files:
+                inspected = ", ".join(file_info["name"] for file_info in local_files)
+                summary = f"{summary} Inspected local file context from: {inspected}."
+                findings.append("Local file previews were incorporated into the analysis context.")
+            if csv_summaries:
+                csv_names = ", ".join(summary_item["name"] for summary_item in csv_summaries)
+                summary = f"{summary} Reviewed CSV structure for: {csv_names}."
+                findings.append("CSV column structure and sample numeric fields were summarized.")
+                for summary_item in csv_summaries:
+                    metrics.append(
+                        f"{summary_item['name']}:columns={len(summary_item['columns'])},"
+                        f"sample_rows={summary_item['sample_row_count']}"
+                    )
             payload = {
                 "question": question,
-                "summary": f"Analysis summary for: {question}",
-                "findings": [
-                    "Start with a narrow analysis objective before adding more tooling.",
-                    "Keep derived findings structured so downstream synthesis can stay deterministic.",
-                    "Expose caveats whenever the analysis depends on local or incomplete context.",
-                ],
-                "metrics": [
-                    "workflow_path=analysis_then_write",
-                    "tool_mode=simulated",
-                ],
-                "caveats": [
-                    "This analysis output is deterministic and does not execute real code.",
-                    "Real tool-backed analysis will require stronger validation around inputs and outputs.",
-                ],
+                "summary": summary,
+                "findings": findings,
+                "metrics": metrics,
+                "caveats": caveats,
             }
             return response_model.model_validate(payload)
 

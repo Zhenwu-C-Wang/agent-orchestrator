@@ -8,6 +8,8 @@ from main import build_supervisor
 
 
 def test_successful_run_writes_audit_record(tmp_path) -> None:
+    csv_path = tmp_path / "sample.csv"
+    csv_path.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
     supervisor = build_supervisor(
         runner_name="fake",
         enable_review=True,
@@ -15,7 +17,7 @@ def test_successful_run_writes_audit_record(tmp_path) -> None:
         cache_dir=str(tmp_path / "cache"),
     )
 
-    result = supervisor.run("How should I define worker schemas before adding more workers?")
+    result = supervisor.run(f"Analyze `{csv_path}` and summarize the changes.")
 
     records = list(tmp_path.glob("*.json"))
     assert len(records) == 1
@@ -27,9 +29,12 @@ def test_successful_run_writes_audit_record(tmp_path) -> None:
     assert payload["metadata"]["review_enabled"] is True
     assert payload["metadata"]["cache_enabled"] is True
     assert payload["result"]["review"]["consistent"] is True
-    assert [trace["worker_name"] for trace in payload["traces"]] == ["research", "writer", "review"]
+    assert payload["result"]["tool_invocations"][0]["tool_name"] == "local_file_context"
+    assert payload["result"]["tool_invocations"][1]["tool_name"] == "csv_analysis"
+    assert [trace["worker_name"] for trace in payload["traces"]] == ["analysis", "writer", "review"]
     assert all(trace["metadata"]["cache_hit"] is False for trace in payload["traces"])
     assert all(trace["metadata"]["cache_status"] == "miss" for trace in payload["traces"])
+    assert payload["traces"][0]["metadata"]["tool_invocation_count"] == 2
 
 
 def test_failed_run_writes_failure_audit_record(tmp_path) -> None:

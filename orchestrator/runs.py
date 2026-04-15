@@ -66,7 +66,8 @@ def format_summary(store: AuditStore, record: AuditRecord) -> str:
     worker_order = " -> ".join(summary["worker_order"])
     return (
         f"{summary['run_id']} | {summary['status']} | {summary['runner']} | "
-        f"{summary['created_at']} | {worker_order} | cache_hits={summary['cache_hits']} | "
+        f"{summary['created_at']} | {worker_order} | tools={summary['tool_invocation_count']} | "
+        f"cache_hits={summary['cache_hits']} | "
         f"{summary['question']}"
     )
 
@@ -81,6 +82,7 @@ def format_detail(store: AuditStore, record: AuditRecord) -> str:
         f"Runner: {summary['runner']}",
         f"Model: {summary['model'] or 'n/a'}",
         f"Review Enabled: {summary['review_enabled']}",
+        f"Tool Invocations: {summary['tool_invocation_count']}",
         f"Cache Hits: {summary['cache_hits']}",
         "Traces:",
         *[

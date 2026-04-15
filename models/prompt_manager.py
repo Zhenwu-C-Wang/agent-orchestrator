@@ -25,6 +25,15 @@ class PromptManager:
         )
 
     def build_analysis_request(self, question: str) -> ModelRequest:
+        return self.build_analysis_request_with_tools(question, tool_context={})
+
+    def build_analysis_request_with_tools(
+        self,
+        question: str,
+        *,
+        tool_context: dict[str, object],
+    ) -> ModelRequest:
+        tool_context_json = json.dumps(tool_context, ensure_ascii=True)
         return ModelRequest(
             task_type="analysis",
             system_prompt=(
@@ -34,9 +43,12 @@ class PromptManager:
             user_prompt=(
                 "Analyze the user's request and produce a concise analysis brief.\n"
                 "Return JSON with keys: question, summary, findings, metrics, caveats.\n"
+                "When tool context is provided, ground the analysis in that context and mention "
+                "what was inspected.\n"
                 f"Question: {question}"
+                f"\nTool Context JSON: {tool_context_json}"
             ),
-            payload={"question": question},
+            payload={"question": question, "tool_context": tool_context},
         )
 
     def build_writer_request(

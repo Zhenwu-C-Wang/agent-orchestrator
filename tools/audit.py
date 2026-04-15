@@ -126,6 +126,14 @@ class AuditStore:
                 if record.result is not None
                 else None
             ),
+            "tool_invocation_count": (
+                len(record.result.tool_invocations)
+                if record.result is not None
+                else sum(
+                    int(trace.metadata.get("tool_invocation_count", 0))
+                    for trace in record.traces
+                )
+            ),
             "trace_count": len(record.traces),
             "worker_order": [trace.worker_name for trace in record.traces],
             "cache_hits": cache_hits,

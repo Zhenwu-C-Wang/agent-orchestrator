@@ -15,13 +15,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _seed_audit_records(tmp_path):
+    csv_path = tmp_path / "sample.csv"
+    csv_path.write_text("month,visits\nJan,10\nFeb,11\n", encoding="utf-8")
     success_supervisor = build_supervisor(
         runner_name="fake",
         enable_review=True,
         audit_dir=str(tmp_path),
         cache_dir=str(tmp_path / "cache"),
     )
-    success_supervisor.run("How should I bootstrap a supervisor-worker system?")
+    success_supervisor.run(f"Analyze `{csv_path}` and summarize the biggest changes.")
 
     failure_supervisor = build_supervisor(
         runner_name="fake",
@@ -51,6 +53,9 @@ def test_audit_store_lists_and_filters_records(tmp_path) -> None:
     assert latest_record is not None
     assert latest_record.status == "failed"
     assert store.get_record(latest_record.run_id) is not None
+    completed_record = store.latest_record(status="completed")
+    assert completed_record is not None
+    assert store.summarize_record(completed_record)["tool_invocation_count"] == 2
 
 
 def test_runs_cli_lists_and_shows_records(tmp_path) -> None:
@@ -115,6 +120,7 @@ def test_runs_cli_lists_and_shows_records(tmp_path) -> None:
     latest_payload = json.loads(latest_cmd.stdout)
 
     assert len(listed_payload) == 2
-    assert any(entry["workflow_name"] == "research_then_write" for entry in listed_payload)
+    assert any(entry["workflow_name"] == "analysis_then_write" for entry in listed_payload)
+    assert any(entry["tool_invocation_count"] == 2 for entry in listed_payload)
     assert shown_payload["run_id"] == latest.run_id
     assert latest_payload["run_id"] == latest.run_id

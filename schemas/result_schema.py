@@ -3,6 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from schemas.task_schema import TaskTrace, WorkflowPlan
+from schemas.tool_schema import ToolInvocation
 
 
 class ResearchResult(BaseModel):
@@ -43,4 +44,5 @@ class WorkflowResult(BaseModel):
     analysis: AnalysisResult | None = None
     final_answer: FinalAnswer
     review: ReviewResult | None = None
+    tool_invocations: list[ToolInvocation] = Field(default_factory=list)
     traces: list[TaskTrace] = Field(default_factory=list)

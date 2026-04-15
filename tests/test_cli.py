@@ -33,3 +33,34 @@ def test_cli_outputs_json_workflow_result() -> None:
     assert payload["research"]["sources"] == ["internal:fake-runner"]
     assert payload["analysis"] is None
     assert len(payload["traces"]) == 2
+
+
+def test_cli_outputs_tool_invocations_for_local_csv_analysis(tmp_path) -> None:
+    csv_path = tmp_path / "metrics.csv"
+    csv_path.write_text("day,visits\nMon,5\nTue,8\nWed,13\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "main.py",
+            f"Analyze `{csv_path}` and summarize the biggest changes.",
+            "--runner",
+            "fake",
+            "--output",
+            "json",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(completed.stdout)
+
+    assert payload["workflow_plan"]["workflow_name"] == "analysis_then_write"
+    assert payload["research"] is None
+    assert payload["analysis"]["summary"].startswith("Analysis summary for:")
+    assert [invocation["tool_name"] for invocation in payload["tool_invocations"]] == [
+        "local_file_context",
+        "csv_analysis",
+    ]

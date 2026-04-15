@@ -11,7 +11,10 @@ from orchestrator.supervisor import Supervisor
 from schemas.result_schema import WorkflowResult
 from tools.audit import AuditLogger
 from tools.cache import StructuredResultCache
+from tools.csv_analysis_tool import CSVAnalysisTool
 from tools.errors import ConfigurationError
+from tools.local_file_tool import LocalFileContextTool
+from tools.registry import ToolManager
 from tools.retry import RetryPolicy
 from workers.analysis_worker import AnalysisWorker
 from workers.research_worker import ResearchWorker
@@ -69,8 +72,18 @@ def build_supervisor(
         )
 
     prompt_manager = PromptManager()
+    tool_manager = ToolManager(
+        tools=[
+            LocalFileContextTool(),
+            CSVAnalysisTool(),
+        ]
+    )
     workers = {
-        "analysis": AnalysisWorker(runner=runner, prompt_manager=prompt_manager),
+        "analysis": AnalysisWorker(
+            runner=runner,
+            prompt_manager=prompt_manager,
+            tool_manager=tool_manager,
+        ),
         "research": ResearchWorker(runner=runner, prompt_manager=prompt_manager),
         "writer": WriterWorker(runner=runner, prompt_manager=prompt_manager),
         "review": ReviewWorker(runner=runner, prompt_manager=prompt_manager),
@@ -123,20 +136,38 @@ def format_pretty(result: WorkflowResult) -> str:
         )
     lines.extend(
         [
-        "Final Answer:",
-        result.final_answer.answer,
-        "",
-        "Review Verdict:",
-        result.review.verdict if result.review else "Review stage disabled.",
-        "",
-        "Supporting Points:",
-        *[f"- {point}" for point in result.final_answer.supporting_points],
-        "",
-        "Trace:",
-        *[
-            f"- {trace.task_id} | {trace.worker_name} | {trace.status} | {trace.duration_ms}ms"
-            for trace in result.traces
-        ],
+            "Final Answer:",
+            result.final_answer.answer,
+            "",
+            "Review Verdict:",
+            result.review.verdict if result.review else "Review stage disabled.",
+            "",
+            "Supporting Points:",
+            *[f"- {point}" for point in result.final_answer.supporting_points],
+        ]
+    )
+    if result.tool_invocations:
+        lines.extend(
+            [
+                "",
+                "Tool Invocations:",
+                *[
+                    (
+                        f"- {invocation.tool_name} | {invocation.status} | "
+                        f"{invocation.output_summary or invocation.input_summary}"
+                    )
+                    for invocation in result.tool_invocations
+                ],
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "Trace:",
+            *[
+                f"- {trace.task_id} | {trace.worker_name} | {trace.status} | {trace.duration_ms}ms"
+                for trace in result.traces
+            ],
         ]
     )
     return "\n".join(lines)

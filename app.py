@@ -73,6 +73,27 @@ def _render_traces(result: WorkflowResult) -> None:
     st.dataframe(rows, use_container_width=True)
 
 
+def _render_tool_invocations(result: WorkflowResult) -> None:
+    st.subheader("Tool Invocations")
+    if not result.tool_invocations:
+        st.info("No tools were invoked for this workflow.")
+        return
+
+    rows = [
+        {
+            "tool_name": invocation.tool_name,
+            "status": invocation.status,
+            "purpose": invocation.purpose,
+            "input_summary": invocation.input_summary,
+            "output_summary": invocation.output_summary,
+            "duration_ms": invocation.duration_ms,
+            "error": invocation.error,
+        }
+        for invocation in result.tool_invocations
+    ]
+    st.dataframe(rows, use_container_width=True)
+
+
 def _render_outputs(result: WorkflowResult) -> None:
     st.subheader("Final Output")
     st.write(result.final_answer.answer)
@@ -172,6 +193,7 @@ def _render_recent_runs(audit_dir: str) -> None:
         st.write(f"Question: {selected.question}")
         if selected.result is not None:
             st.write(f"Workflow: `{selected.result.workflow_plan.workflow_name}`")
+            st.write(f"Tool invocations: `{len(selected.result.tool_invocations)}`")
             st.write(selected.result.final_answer.answer)
         if selected.error:
             st.error(selected.error)
@@ -264,6 +286,7 @@ def main() -> None:
         st.success("Workflow completed.")
         _render_intermediate_result(result)
         _render_outputs(result)
+        _render_tool_invocations(result)
         _render_traces(result)
         _render_downloads(result)
 

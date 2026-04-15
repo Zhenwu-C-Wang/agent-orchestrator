@@ -7,6 +7,7 @@ from orchestrator.router import TaskRouter
 from orchestrator.task_manager import TaskManager
 from schemas.result_schema import AnalysisResult, FinalAnswer, ResearchResult, ReviewResult, WorkflowResult
 from schemas.task_schema import TaskTrace, TaskType
+from schemas.tool_schema import ToolInvocation
 from tools.audit import AuditLogger
 
 
@@ -30,6 +31,7 @@ class Supervisor:
     def run(self, question: str) -> WorkflowResult:
         context: dict[str, object] = {}
         traces: list[TaskTrace] = []
+        tool_invocations: list[ToolInvocation] = []
         workflow_plan = self.planner.build_plan(question)
         research_result: ResearchResult | None = None
         analysis_result: AnalysisResult | None = None
@@ -61,6 +63,8 @@ class Supervisor:
             finally:
                 if hasattr(worker, "consume_last_run_metadata"):
                     trace_metadata = worker.consume_last_run_metadata()
+                if hasattr(worker, "consume_last_tool_invocations"):
+                    tool_invocations.extend(worker.consume_last_tool_invocations())
                 duration_ms = int((perf_counter() - started_at) * 1000)
                 traces.append(
                     TaskTrace(
@@ -109,6 +113,7 @@ class Supervisor:
             analysis=analysis_result,
             final_answer=final_answer,
             review=review_result,
+            tool_invocations=tool_invocations,
             traces=traces,
         )
         if self.audit_logger is not None:
