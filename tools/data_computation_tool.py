@@ -19,7 +19,7 @@ class DataComputationTool:
 
     def supports(self, *, task_type: str, question: str, context: dict[str, Any]) -> bool:
         candidate_paths: list[Path] = context.get("candidate_paths", [])
-        return task_type == "analysis" and any(
+        return task_type in {"analysis", "comparison"} and any(
             path.suffix.lower() in {".csv", ".json"} for path in candidate_paths
         )
 

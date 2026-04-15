@@ -2,7 +2,7 @@
 A supervisor-driven multi-agent system where a central orchestrator decomposes tasks, delegates to specialized worker agents, and synthesizes final outputs. Designed for controllability, observability, and production workflows.
 
 ## Status
-This repository now contains a practical local-first orchestration framework with bounded workflow planning across research, analysis, and hybrid advisory-plus-context paths, tool-backed local and HTTP context analysis, bounded dataset computation, structured outputs, audit persistence, and a minimal Streamlit console.
+This repository now contains a practical local-first orchestration framework with bounded workflow planning across research, analysis, comparison, and hybrid advisory/context paths, tool-backed local and HTTP context analysis, bounded dataset computation, structured outputs, audit persistence, and a guided Streamlit console.
 The default runner is deterministic for tests and demos, and the same orchestration contract can be switched to Ollama for local model execution.
 
 ## Quickstart
@@ -82,6 +82,18 @@ python main.py "Analyze this dataset and recommend what we should prioritize nex
 ```
 
 This routes to the bounded hybrid workflow `research_then_analysis_then_write`, so the final answer can combine high-level reasoning with tool-backed dataset findings.
+
+When you want to compare multiple explicit contexts, attach both and ask for a comparison directly:
+
+```bash
+python main.py "Compare these datasets and summarize the most important differences." \
+  --runner fake \
+  --context-file docs/sample_data/quarterly_metrics.csv \
+  --context-file docs/sample_data/quarterly_metrics_baseline.csv \
+  --output json
+```
+
+This routes to `comparison_then_write`. If you ask which dataset or source you should prioritize next, the planner broadens that into `research_then_comparison_then_write`.
 
 You can also attach URLs explicitly:
 
@@ -233,7 +245,7 @@ python -m orchestrator.cache --cache-dir artifacts/cache clear
 
 ## Acceptance Run
 
-Run the 8-question acceptance dataset with the fake runner:
+Run the 10-question acceptance dataset with the fake runner:
 
 ```bash
 python -m orchestrator.acceptance --runner fake
@@ -245,9 +257,9 @@ Run the same dataset against a local Ollama model:
 python -m orchestrator.acceptance --runner ollama --model qwen2.5:14b
 ```
 
-The dataset includes one tool-backed CSV analysis case, one tool-backed JSON analysis case, and one hybrid advisory-plus-context case that routes through research, analysis, and writing. The structured-data cases all exercise bounded numeric computation in addition to schema inspection.
+The dataset includes one tool-backed CSV analysis case, one tool-backed JSON analysis case, one comparison case over paired datasets, and hybrid advisory cases for both analysis and comparison. The structured-data cases all exercise bounded numeric computation in addition to schema inspection.
 Use `--output json` if you want the full structured report.
-Add `--with-review` to validate the optional three-stage workflow.
+Add `--with-review` to validate the optional review-augmented workflow.
 Add `--report-dir artifacts/acceptance` if you want one persisted acceptance record per run.
 
 ## Acceptance Report Query
@@ -283,7 +295,7 @@ python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance compare
 This MVP provides the **orchestration foundation** for a comprehensive multi-agent system. The long-term vision extends this into a **multi-functional intelligent systems framework** supporting:
 
 ### Current Capabilities ✅
-- **Bounded workflow orchestration**: Research, analysis, and hybrid research-plus-analysis paths with optional review
+- **Bounded workflow orchestration**: Research, analysis, comparison, and hybrid research-plus-analysis/comparison paths with optional review
 - **Multi-role system**: Specialized workers with distinct responsibilities
 - **Structured I/O schemas**: Type-safe task inputs and outputs via Pydantic
 - **Model flexibility**: Switch between fake runners and local Ollama models

@@ -5,7 +5,14 @@ from time import perf_counter
 from orchestrator.planner import TaskPlanner
 from orchestrator.router import TaskRouter
 from orchestrator.task_manager import TaskManager
-from schemas.result_schema import AnalysisResult, FinalAnswer, ResearchResult, ReviewResult, WorkflowResult
+from schemas.result_schema import (
+    AnalysisResult,
+    ComparisonResult,
+    FinalAnswer,
+    ResearchResult,
+    ReviewResult,
+    WorkflowResult,
+)
 from schemas.task_schema import TaskTrace, TaskType
 from schemas.tool_schema import ToolInvocation
 from tools.audit import AuditLogger
@@ -53,6 +60,7 @@ class Supervisor:
         )
         research_result: ResearchResult | None = None
         analysis_result: AnalysisResult | None = None
+        comparison_result: ComparisonResult | None = None
         final_answer: FinalAnswer | None = None
         review_result: ReviewResult | None = None
 
@@ -116,6 +124,9 @@ class Supervisor:
             elif step.task_type is TaskType.ANALYSIS:
                 analysis_result = result
                 context["analysis"] = result
+            elif step.task_type is TaskType.COMPARISON:
+                comparison_result = result
+                context["comparison"] = result
             elif step.task_type is TaskType.WRITING:
                 final_answer = result
                 context["final_answer"] = result
@@ -125,7 +136,7 @@ class Supervisor:
 
         if final_answer is None:
             raise RuntimeError("Workflow did not produce a final answer output.")
-        if research_result is None and analysis_result is None:
+        if research_result is None and analysis_result is None and comparison_result is None:
             raise RuntimeError("Workflow did not produce an intermediate worker output.")
 
         workflow_result = WorkflowResult(
@@ -133,6 +144,7 @@ class Supervisor:
             workflow_plan=workflow_plan,
             research=research_result,
             analysis=analysis_result,
+            comparison=comparison_result,
             final_answer=final_answer,
             review=review_result,
             tool_invocations=tool_invocations,

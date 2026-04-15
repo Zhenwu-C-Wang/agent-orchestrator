@@ -39,6 +39,25 @@ def test_plan_guidance_describes_hybrid_route_for_advisory_context_requests(tmp_
     assert any("Research frames the question" in item for item in guidance.guidance)
 
 
+def test_plan_guidance_warns_when_comparison_intent_has_only_one_context(tmp_path) -> None:
+    csv_path = tmp_path / "sales.csv"
+    csv_path.write_text("quarter,revenue\nQ1,10\nQ2,12\n", encoding="utf-8")
+
+    planner = TaskPlanner()
+    plan = planner.build_plan(
+        "Compare this dataset and summarize the most important differences.",
+        context_files=[str(csv_path)],
+    )
+
+    guidance = build_plan_guidance(
+        plan,
+        question="Compare this dataset and summarize the most important differences.",
+    )
+
+    assert guidance.headline == "Analysis Route"
+    assert any("Attach at least two files or URLs" in warning for warning in guidance.warnings)
+
+
 def test_result_overview_highlights_hybrid_workflow_and_suggests_review(tmp_path) -> None:
     csv_path = tmp_path / "sales.csv"
     csv_path.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
@@ -56,3 +75,22 @@ def test_result_overview_highlights_hybrid_workflow_and_suggests_review(tmp_path
     assert any("Analysis captured" in item for item in overview.highlights)
     assert any("Enable the review stage" in item for item in overview.next_actions)
     assert any(metric.label == "Tools" and metric.value == "3" for metric in overview.metrics)
+
+
+def test_result_overview_highlights_comparison_workflow(tmp_path) -> None:
+    current = tmp_path / "current.csv"
+    baseline = tmp_path / "baseline.csv"
+    current.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+    baseline.write_text("quarter,revenue\nQ1,8\nQ2,12\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake")
+    result = supervisor.run_with_context(
+        "Compare these datasets and summarize the most important differences.",
+        context_files=[str(current), str(baseline)],
+    )
+
+    overview = build_result_overview(result)
+
+    assert overview.headline == "Comparison Route Inspection"
+    assert any("Comparison captured" in item for item in overview.highlights)
+    assert any("broader hybrid comparison route" in item for item in overview.next_actions)

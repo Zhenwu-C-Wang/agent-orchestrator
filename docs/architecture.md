@@ -6,11 +6,11 @@ This repository now implements a practical local-first orchestration framework r
 
 The runtime is intentionally bounded:
 
-- `TaskPlanner` classifies a request into one of three workflow templates.
+- `TaskPlanner` classifies a request into one of five workflow templates.
 - `TaskRouter` turns that plan into task inputs.
 - `Supervisor` executes the selected worker chain, collects traces, and aggregates tool invocation records.
-- `ResearchWorker`, `AnalysisWorker`, `WriterWorker`, and optional `ReviewWorker` stay focused on one contract each.
-- `ToolManager` owns bounded tool execution for the analysis path.
+- `ResearchWorker`, `AnalysisWorker`, `ComparisonWorker`, `WriterWorker`, and optional `ReviewWorker` stay focused on one contract each.
+- `ToolManager` owns bounded tool execution for the analysis and comparison paths.
 - `ModelRunner` implementations own structured model calls, retries, and cache integration.
 
 The current workflow templates are:
@@ -18,16 +18,19 @@ The current workflow templates are:
 1. `research_then_write`
 2. `analysis_then_write`
 3. `research_then_analysis_then_write`
-4. optional `review` appended to any of the bounded paths
+4. `comparison_then_write`
+5. `research_then_comparison_then_write`
+6. optional `review` appended to any of the bounded paths
 
 ## Responsibility Boundaries
 
 - `Supervisor` owns workflow execution, worker lookup, sequencing, trace collection, and result aggregation.
-- `TaskPlanner` owns bounded workflow selection from the user request, including the hybrid advisory-plus-context route.
+- `TaskPlanner` owns bounded workflow selection from the user request, including hybrid analysis and hybrid comparison routes.
 - `TaskRouter` owns task-input construction from workflow steps and intermediate context.
 - `TaskManager` owns task identifiers and task envelope creation.
 - `ResearchWorker` owns research-summary generation only.
 - `AnalysisWorker` owns tool-backed analysis preparation plus structured analysis generation.
+- `ComparisonWorker` owns tool-backed comparison preparation plus structured comparison generation.
 - `WriterWorker` owns final-answer generation from one or more intermediate worker results.
 - `ReviewWorker` owns consistency checking between the intermediate worker results and the final answer.
 - `PromptManager` owns prompt wording and prompt payload construction.
@@ -58,7 +61,7 @@ Tool execution is intentionally isolated from worker orchestration and model inv
 
 That split keeps several things clean:
 
-- `AnalysisWorker` can request tool context without knowing how file inspection or CSV summarization are implemented.
+- `AnalysisWorker` and `ComparisonWorker` can request tool context without knowing how file inspection or CSV summarization are implemented.
 - tool invocations are recorded in one structured format and can surface in workflow results, audit records, CLI output, and the UI.
 - adding a new tool does not require rewriting supervisor logic.
 
@@ -105,7 +108,7 @@ Each mode is produced from the same structured workflow result so presentation c
 
 ## Why Acceptance Now Covers Tool-Backed Cases
 
-The acceptance dataset includes one CSV-backed analysis case, one JSON-backed analysis case, and one hybrid advisory-plus-context case, all attached explicitly.
+The acceptance dataset includes one CSV-backed analysis case, one JSON-backed analysis case, one paired-dataset comparison case, and hybrid advisory cases for both analysis and comparison, all attached explicitly.
 
 That matters because we no longer only validate:
 
@@ -118,8 +121,10 @@ We also validate:
 - local file detection
 - tool invocation recording
 - tool-backed analysis synthesis
+- tool-backed comparison synthesis across paired explicit contexts
 - bounded numeric computation over explicit structured datasets
 - hybrid routing that carries research context into tool-backed analysis and final synthesis
+- hybrid routing that carries research context into tool-backed comparison and final synthesis
 - bounded HTTP-backed context analysis through local integration tests
 
 ## User-Facing Surfaces

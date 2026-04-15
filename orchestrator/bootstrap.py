@@ -20,6 +20,7 @@ from tools.local_file_tool import LocalFileContextTool
 from tools.registry import ToolManager
 from tools.retry import RetryPolicy
 from workers.analysis_worker import AnalysisWorker
+from workers.comparison_worker import ComparisonWorker
 from workers.research_worker import ResearchWorker
 from workers.review_worker import ReviewWorker
 from workers.writer_worker import WriterWorker
@@ -94,6 +95,11 @@ def build_supervisor(
             prompt_manager=prompt_manager,
             tool_manager=tool_manager,
         ),
+        "comparison": ComparisonWorker(
+            runner=runner,
+            prompt_manager=prompt_manager,
+            tool_manager=tool_manager,
+        ),
         "research": ResearchWorker(runner=runner, prompt_manager=prompt_manager),
         "writer": WriterWorker(runner=runner, prompt_manager=prompt_manager),
         "review": ReviewWorker(runner=runner, prompt_manager=prompt_manager),
@@ -147,6 +153,14 @@ def format_pretty(result: WorkflowResult) -> str:
             [
                 "Analysis Summary:",
                 result.analysis.summary,
+                "",
+            ]
+        )
+    if result.comparison is not None:
+        lines.extend(
+            [
+                "Comparison Summary:",
+                result.comparison.summary,
                 "",
             ]
         )
@@ -237,6 +251,28 @@ def format_markdown(result: WorkflowResult) -> str:
         if result.analysis.caveats:
             lines.extend(["### Caveats", ""])
             lines.extend(f"- {caveat}" for caveat in result.analysis.caveats)
+            lines.append("")
+
+    if result.comparison is not None:
+        lines.extend(
+            [
+                "## Comparison",
+                "",
+                result.comparison.summary,
+                "",
+            ]
+        )
+        if result.comparison.comparisons:
+            lines.extend(["### Comparisons", ""])
+            lines.extend(f"- {item}" for item in result.comparison.comparisons)
+            lines.append("")
+        if result.comparison.metrics:
+            lines.extend(["### Metrics", ""])
+            lines.extend(f"- `{metric}`" for metric in result.comparison.metrics)
+            lines.append("")
+        if result.comparison.caveats:
+            lines.extend(["### Caveats", ""])
+            lines.extend(f"- {caveat}" for caveat in result.comparison.caveats)
             lines.append("")
 
     lines.extend(

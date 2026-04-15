@@ -49,6 +49,46 @@ def test_supervisor_routes_advisory_context_requests_to_hybrid_workflow(tmp_path
     assert "Incorporated prior research context" in result.analysis.summary
 
 
+def test_supervisor_routes_compare_requests_to_comparison_workflow(tmp_path) -> None:
+    current = tmp_path / "current.csv"
+    baseline = tmp_path / "baseline.csv"
+    current.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+    baseline.write_text("quarter,revenue\nQ1,8\nQ2,12\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake")
+
+    result = supervisor.run_with_context(
+        "Compare these datasets and summarize the most important differences.",
+        context_files=[str(current), str(baseline)],
+    )
+
+    assert result.research is None
+    assert result.comparison is not None
+    assert result.workflow_plan.workflow_name == "comparison_then_write"
+    assert [trace.worker_name for trace in result.traces] == ["comparison", "writer"]
+    assert "Computed bounded dataset comparisons" in result.comparison.summary
+
+
+def test_supervisor_routes_advisory_compare_requests_to_hybrid_comparison_workflow(tmp_path) -> None:
+    current = tmp_path / "current.csv"
+    baseline = tmp_path / "baseline.csv"
+    current.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+    baseline.write_text("quarter,revenue\nQ1,8\nQ2,12\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake")
+
+    result = supervisor.run_with_context(
+        "Compare these datasets and recommend which one we should prioritize next.",
+        context_files=[str(current), str(baseline)],
+    )
+
+    assert result.research is not None
+    assert result.comparison is not None
+    assert result.workflow_plan.workflow_name == "research_then_comparison_then_write"
+    assert [trace.worker_name for trace in result.traces] == ["research", "comparison", "writer"]
+    assert "Incorporated prior research context" in result.comparison.summary
+
+
 def test_supervisor_records_tool_invocations_for_local_csv_analysis(tmp_path) -> None:
     csv_path = tmp_path / "sales.csv"
     csv_path.write_text("month,revenue\nJan,10\nFeb,12\nMar,15\n", encoding="utf-8")

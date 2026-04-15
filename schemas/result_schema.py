@@ -29,6 +29,14 @@ class AnalysisResult(BaseModel):
     caveats: list[str] = Field(default_factory=list)
 
 
+class ComparisonResult(BaseModel):
+    question: str
+    summary: str
+    comparisons: list[str] = Field(default_factory=list)
+    metrics: list[str] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
+
+
 class ReviewResult(BaseModel):
     question: str
     consistent: bool
@@ -42,6 +50,7 @@ class WorkflowResult(BaseModel):
     workflow_plan: WorkflowPlan
     research: ResearchResult | None = None
     analysis: AnalysisResult | None = None
+    comparison: ComparisonResult | None = None
     final_answer: FinalAnswer
     review: ReviewResult | None = None
     tool_invocations: list[ToolInvocation] = Field(default_factory=list)

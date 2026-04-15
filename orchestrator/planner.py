@@ -45,10 +45,30 @@ class TaskPlanner:
         has_local_files = bool(discovered_local_files or context_files)
         has_context_urls = bool(discovered_context_urls or context_urls)
         has_explicit_context = has_local_files or has_context_urls
+        context_artifact_count = (
+            len(context_files or [])
+            + len(context_urls or [])
+            + len(discovered_local_files)
+            + len(discovered_context_urls)
+        )
         is_analysis = any(
             keyword in lowered
             for keyword in ("analyze", "analyse", "analysis", "dataset", "csv", "data file")
         ) or has_explicit_context
+        compare_intent = any(
+            keyword in heuristic_text
+            for keyword in (
+                "compare",
+                "comparison",
+                "versus",
+                " vs ",
+                "difference",
+                "different",
+                "changed more",
+                "higher than",
+                "lower than",
+            )
+        )
         requires_research_support = has_explicit_context and any(
             keyword in heuristic_text
             for keyword in (
@@ -64,8 +84,50 @@ class TaskPlanner:
                 "next step",
             )
         )
+        requires_context_comparison = compare_intent and context_artifact_count >= 2
 
-        if is_analysis and requires_research_support:
+        if requires_context_comparison and requires_research_support:
+            steps = [
+                WorkflowStep(
+                    task_type=TaskType.RESEARCH,
+                    worker_name="research",
+                    output_schema="ResearchResult",
+                ),
+                WorkflowStep(
+                    task_type=TaskType.COMPARISON,
+                    worker_name="comparison",
+                    output_schema="ComparisonResult",
+                ),
+                WorkflowStep(
+                    task_type=TaskType.WRITING,
+                    worker_name="writer",
+                    output_schema="FinalAnswer",
+                ),
+            ]
+            rationale = (
+                "The request combines multiple explicit contexts, comparison intent, and advisory intent, "
+                "so the workflow starts with ResearchWorker, then runs ComparisonWorker before synthesis."
+            )
+            workflow_name = "research_then_comparison_then_write"
+        elif requires_context_comparison:
+            steps = [
+                WorkflowStep(
+                    task_type=TaskType.COMPARISON,
+                    worker_name="comparison",
+                    output_schema="ComparisonResult",
+                ),
+                WorkflowStep(
+                    task_type=TaskType.WRITING,
+                    worker_name="writer",
+                    output_schema="FinalAnswer",
+                ),
+            ]
+            rationale = (
+                "The request compares multiple explicit contexts, so the workflow starts with "
+                "ComparisonWorker before synthesis."
+            )
+            workflow_name = "comparison_then_write"
+        elif is_analysis and requires_research_support:
             steps = [
                 WorkflowStep(
                     task_type=TaskType.RESEARCH,
@@ -151,9 +213,22 @@ class TaskPlanner:
             metadata={
                 "review_enabled": self.enable_review,
                 "question_type": (
-                    "hybrid" if is_analysis and requires_research_support else "analysis" if is_analysis else "research"
+                    (
+                        "hybrid_comparison"
+                        if requires_context_comparison and requires_research_support
+                        else "comparison"
+                        if requires_context_comparison
+                        else "hybrid"
+                        if is_analysis and requires_research_support
+                        else "analysis"
+                        if is_analysis
+                        else "research"
+                    )
                 ),
+                "compare_intent": compare_intent,
+                "requires_context_comparison": requires_context_comparison,
                 "requires_research_support": requires_research_support,
+                "context_artifact_count": context_artifact_count,
                 "has_local_files": has_local_files,
                 "context_file_count": len(context_files or []),
                 "discovered_context_file_count": len(discovered_local_files),

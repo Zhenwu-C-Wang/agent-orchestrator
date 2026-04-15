@@ -45,6 +45,8 @@ def build_plan_guidance(plan: WorkflowPlan, *, question: str) -> PlanGuidance:
     explicit_url_count = int(metadata.get("context_url_count", 0))
     discovered_file_count = int(metadata.get("discovered_context_file_count", 0))
     discovered_url_count = int(metadata.get("discovered_context_url_count", 0))
+    context_artifact_count = int(metadata.get("context_artifact_count", 0))
+    compare_intent = bool(metadata.get("compare_intent"))
     review_enabled = bool(metadata.get("review_enabled"))
     requires_research_support = bool(metadata.get("requires_research_support"))
     question_type = str(metadata.get("question_type", "research"))
@@ -71,6 +73,16 @@ def build_plan_guidance(plan: WorkflowPlan, *, question: str) -> PlanGuidance:
     if plan.workflow_name == "analysis_then_write" and explicit_file_count + explicit_url_count == 0:
         warnings.append(
             "This route will analyze the request text only because no explicit files or URLs are attached."
+        )
+    if compare_intent and context_artifact_count < 2:
+        warnings.append(
+            "Comparison intent was detected, but fewer than two explicit contexts are attached. "
+            "Attach at least two files or URLs to trigger the comparison route."
+        )
+    if question_type == "comparison" and not requires_research_support:
+        warnings.append(
+            "This stays on the narrower comparison route because the question asks for comparison, "
+            "not recommendation or prioritization."
         )
     if question_type == "analysis" and (explicit_file_count + explicit_url_count) > 0 and not requires_research_support:
         warnings.append(
@@ -142,6 +154,11 @@ def build_result_overview(result: WorkflowResult) -> ResultOverview:
             f"Analysis captured {len(result.analysis.findings)} finding(s), {len(result.analysis.metrics)} metric(s), "
             f"and {len(result.analysis.caveats)} caveat(s)."
         )
+    if result.comparison is not None:
+        highlights.append(
+            f"Comparison captured {len(result.comparison.comparisons)} comparison point(s), "
+            f"{len(result.comparison.metrics)} metric(s), and {len(result.comparison.caveats)} caveat(s)."
+        )
     highlights.append(
         f"Final answer includes {len(result.final_answer.supporting_points)} supporting point(s) and "
         f"{len(result.final_answer.limitations)} limitation(s)."
@@ -160,11 +177,17 @@ def build_result_overview(result: WorkflowResult) -> ResultOverview:
         next_actions.append("Address the review issues before treating this run as ready to share or automate.")
     if result.analysis is not None and result.analysis.caveats:
         next_actions.append("Inspect the analysis caveats before acting on the recommendation or summary.")
+    if result.comparison is not None and result.comparison.caveats:
+        next_actions.append("Inspect the comparison caveats before acting on differences or ranking decisions.")
     if result.workflow_plan.workflow_name == "research_then_write":
         next_actions.append("Attach explicit files or URLs on the next run if you want grounded context analysis.")
     elif result.workflow_plan.workflow_name == "analysis_then_write":
         next_actions.append(
             "Ask for a recommendation, strategy, or prioritization decision to trigger the broader hybrid route next time."
+        )
+    elif result.workflow_plan.workflow_name == "comparison_then_write":
+        next_actions.append(
+            "Ask which option, region, or source you should prioritize next to trigger the broader hybrid comparison route."
         )
     elif result.review is None:
         next_actions.append("This already uses the broadest bounded route today; add review when you need a validation gate.")
@@ -186,6 +209,10 @@ def build_result_overview(result: WorkflowResult) -> ResultOverview:
 
 
 def _route_label(workflow_name: str) -> str:
+    if workflow_name == "research_then_comparison_then_write":
+        return "Hybrid Comparison Route"
+    if workflow_name == "comparison_then_write":
+        return "Comparison Route"
     if workflow_name == "research_then_analysis_then_write":
         return "Hybrid Advisory Route"
     if workflow_name == "analysis_then_write":
@@ -194,7 +221,19 @@ def _route_label(workflow_name: str) -> str:
 
 
 def _route_guidance(workflow_name: str, *, review_enabled: bool) -> list[str]:
-    if workflow_name == "research_then_analysis_then_write":
+    if workflow_name == "research_then_comparison_then_write":
+        guidance = [
+            "Use this route when you need broad reasoning plus a grounded comparison across multiple explicit contexts.",
+            "Research frames the comparison before the comparison step consumes tool-backed context.",
+            "The writer will synthesize both research and comparison into the final answer.",
+        ]
+    elif workflow_name == "comparison_then_write":
+        guidance = [
+            "Use this route when you need to compare two or more explicit files or URLs without adding broader research framing.",
+            "Keep comparison inputs explicit so tool-backed differences stay auditable and predictable.",
+            "Ask what you should recommend or prioritize next when you want the broader hybrid comparison route.",
+        ]
+    elif workflow_name == "research_then_analysis_then_write":
         guidance = [
             "Use this route when you need both high-level reasoning and grounded analysis over explicit files or URLs.",
             "Research frames the question before the analysis step consumes tool-backed context.",
@@ -230,7 +269,16 @@ def _plan_summary(
         if (explicit_file_count + explicit_url_count) > 0
         else "No explicit context is attached."
     )
-    if workflow_name == "research_then_analysis_then_write":
+    if workflow_name == "research_then_comparison_then_write":
+        route_summary = (
+            "This is the broadest comparison route today: research frames the request, "
+            "comparison grounds it in tools, and writing synthesizes both."
+        )
+    elif workflow_name == "comparison_then_write":
+        route_summary = (
+            "This route goes straight into tool-backed comparison before the final synthesis step."
+        )
+    elif workflow_name == "research_then_analysis_then_write":
         route_summary = (
             "This is the broadest bounded route today: research frames the request, "
             "analysis grounds it in tools, and writing synthesizes both."
@@ -248,6 +296,12 @@ def _plan_summary(
 
 
 def _result_summary(result: WorkflowResult) -> str:
+    if result.workflow_plan.workflow_name == "research_then_comparison_then_write":
+        return (
+            "This run combined research framing with tool-backed comparison before producing the final answer."
+        )
+    if result.workflow_plan.workflow_name == "comparison_then_write":
+        return "This run relied on tool-backed comparison before producing the final answer."
     if result.workflow_plan.workflow_name == "research_then_analysis_then_write":
         return (
             "This run combined research framing with tool-backed analysis before producing the final answer."

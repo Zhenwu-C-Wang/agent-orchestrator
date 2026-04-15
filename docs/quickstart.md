@@ -95,7 +95,28 @@ What to look for:
 
 The Streamlit sidebar exposes the same capability through a multiline URL input.
 
-## 5. Persist And Inspect A Run
+## 5. Comparison Workflow
+
+Use two explicit contexts when you want the planner to compare datasets instead of only summarizing one:
+
+```bash
+python main.py "Compare these datasets and summarize the most important differences." \
+  --runner fake \
+  --context-file docs/sample_data/quarterly_metrics.csv \
+  --context-file docs/sample_data/quarterly_metrics_baseline.csv \
+  --output json
+```
+
+What to look for:
+
+- workflow selection should be `comparison_then_write`
+- traces should run in the order `comparison`, `writer`
+- `tool_invocations` should still include `local_file_context`, `csv_analysis`, and `data_computation`
+- the JSON result should contain a `comparison` block
+
+If you ask which dataset you should prioritize next, the planner should broaden that to `research_then_comparison_then_write`.
+
+## 6. Persist And Inspect A Run
 
 Write audit output while running a workflow:
 
@@ -114,7 +135,7 @@ python -m orchestrator.runs --audit-dir artifacts/runs list
 python -m orchestrator.runs --audit-dir artifacts/runs latest --output json
 ```
 
-## 6. Run The Acceptance Dataset
+## 7. Run The Acceptance Dataset
 
 Run the full acceptance suite locally:
 
@@ -122,13 +143,15 @@ Run the full acceptance suite locally:
 python -m orchestrator.acceptance --runner fake
 ```
 
-The current 8-case dataset includes:
+The current 10-case dataset includes:
 
 - research-style orchestration cases
 - review coverage when `--with-review` is enabled
 - one tool-backed CSV analysis case
 - one tool-backed JSON analysis case
 - one hybrid advisory-plus-context case
+- one comparison case over paired datasets
+- one hybrid comparison case over paired datasets
 
 Persist a report if you want later comparison:
 
@@ -137,7 +160,7 @@ python -m orchestrator.acceptance --runner fake --report-dir artifacts/acceptanc
 python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance compare
 ```
 
-## 7. Use The Streamlit Console
+## 8. Use The Streamlit Console
 
 Launch the local UI:
 

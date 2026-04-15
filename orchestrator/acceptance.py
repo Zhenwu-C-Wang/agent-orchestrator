@@ -11,6 +11,7 @@ from tools.acceptance import AcceptanceLogger
 from tools.errors import AcceptanceFailedError, run_cli
 
 ACCEPTANCE_SAMPLE_CSV = "docs/sample_data/quarterly_metrics.csv"
+ACCEPTANCE_SAMPLE_COMPARISON_CSV = "docs/sample_data/quarterly_metrics_baseline.csv"
 ACCEPTANCE_SAMPLE_JSON = "docs/sample_data/quarterly_metrics.json"
 
 
@@ -33,6 +34,14 @@ ACCEPTANCE_CASES = [
     AcceptanceCaseDefinition(
         "Analyze the bundled quarterly metrics dataset and recommend what we should prioritize next.",
         context_files=(ACCEPTANCE_SAMPLE_CSV,),
+    ),
+    AcceptanceCaseDefinition(
+        "Compare the bundled quarterly metrics datasets and summarize the most important differences.",
+        context_files=(ACCEPTANCE_SAMPLE_CSV, ACCEPTANCE_SAMPLE_COMPARISON_CSV),
+    ),
+    AcceptanceCaseDefinition(
+        "Compare the bundled quarterly metrics datasets and recommend which one we should prioritize next.",
+        context_files=(ACCEPTANCE_SAMPLE_CSV, ACCEPTANCE_SAMPLE_COMPARISON_CSV),
     ),
     AcceptanceCaseDefinition(
         "Analyze the bundled quarterly metrics JSON snapshot and summarize the most important changes.",
@@ -63,7 +72,13 @@ def evaluate_result(result: WorkflowResult, *, expect_review: bool) -> tuple[lis
         if not result.analysis.findings:
             errors.append("Analysis findings are empty.")
         intermediate_points.extend(result.analysis.findings)
-    if result.research is None and result.analysis is None:
+    if result.comparison is not None:
+        if not _has_content(result.comparison.summary):
+            errors.append("Comparison summary is empty.")
+        if not result.comparison.comparisons:
+            errors.append("Comparison points are empty.")
+        intermediate_points.extend(result.comparison.comparisons)
+    if result.research is None and result.analysis is None and result.comparison is None:
         errors.append("No intermediate worker result was returned.")
     if not _has_content(result.final_answer.answer):
         errors.append("Final answer is empty.")

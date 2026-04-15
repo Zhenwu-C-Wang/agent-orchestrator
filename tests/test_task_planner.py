@@ -82,3 +82,37 @@ def test_task_planner_uses_hybrid_workflow_for_advisory_requests_with_context_fi
     assert [step.worker_name for step in plan.steps] == ["research", "analysis", "writer"]
     assert plan.metadata["question_type"] == "hybrid"
     assert plan.metadata["requires_research_support"] is True
+
+
+def test_task_planner_uses_comparison_workflow_for_compare_requests_with_multiple_contexts(tmp_path) -> None:
+    current = tmp_path / "current.csv"
+    baseline = tmp_path / "baseline.csv"
+    current.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+    baseline.write_text("quarter,revenue\nQ1,8\nQ2,12\n", encoding="utf-8")
+
+    plan = TaskPlanner().build_plan(
+        "Compare these datasets and summarize the most important differences.",
+        context_files=[str(current), str(baseline)],
+    )
+
+    assert plan.workflow_name == "comparison_then_write"
+    assert [step.worker_name for step in plan.steps] == ["comparison", "writer"]
+    assert plan.metadata["question_type"] == "comparison"
+    assert plan.metadata["requires_context_comparison"] is True
+
+
+def test_task_planner_uses_hybrid_comparison_workflow_for_advisory_compare_requests(tmp_path) -> None:
+    current = tmp_path / "current.csv"
+    baseline = tmp_path / "baseline.csv"
+    current.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+    baseline.write_text("quarter,revenue\nQ1,8\nQ2,12\n", encoding="utf-8")
+
+    plan = TaskPlanner().build_plan(
+        "Compare these datasets and recommend which one we should prioritize next.",
+        context_files=[str(current), str(baseline)],
+    )
+
+    assert plan.workflow_name == "research_then_comparison_then_write"
+    assert [step.worker_name for step in plan.steps] == ["research", "comparison", "writer"]
+    assert plan.metadata["question_type"] == "hybrid_comparison"
+    assert plan.metadata["requires_context_comparison"] is True

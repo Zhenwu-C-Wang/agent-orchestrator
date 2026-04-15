@@ -20,5 +20,6 @@ class ReviewWorker(BaseWorker[ReviewTaskInput, ReviewResult]):
             question=payload.question,
             research=payload.research,
             analysis=payload.analysis,
+            comparison=payload.comparison,
             final_answer=payload.final_answer,
         )

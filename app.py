@@ -114,6 +114,22 @@ def _render_intermediate_result(result: WorkflowResult) -> None:
             for caveat in result.analysis.caveats:
                 st.write(f"- {caveat}")
 
+    if result.comparison is not None:
+        st.subheader("Comparison")
+        st.write(result.comparison.summary)
+        if result.comparison.comparisons:
+            st.markdown("**Comparisons**")
+            for item in result.comparison.comparisons:
+                st.write(f"- {item}")
+        if result.comparison.metrics:
+            st.markdown("**Metrics**")
+            for metric in result.comparison.metrics:
+                st.write(f"- {metric}")
+        if result.comparison.caveats:
+            st.markdown("**Caveats**")
+            for caveat in result.comparison.caveats:
+                st.write(f"- {caveat}")
+
 
 def _render_result_overview(result: WorkflowResult) -> None:
     overview = build_result_overview(result)

@@ -20,7 +20,15 @@ def test_acceptance_dataset_passes_with_fake_runner() -> None:
     assert report.failed_cases == 0
     assert all(case.passed for case in report.case_results)
     csv_case = next(case for case in report.case_results if "quarterly metrics dataset and summarize" in case.question)
-    hybrid_case = next(case for case in report.case_results if "prioritize next" in case.question)
+    hybrid_case = next(
+        case
+        for case in report.case_results
+        if "analyze the bundled quarterly metrics dataset and recommend" in case.question.lower()
+    )
+    comparison_case = next(case for case in report.case_results if "summarize the most important differences" in case.question)
+    hybrid_comparison_case = next(
+        case for case in report.case_results if "compare the bundled quarterly metrics datasets and recommend" in case.question.lower()
+    )
     json_case = next(case for case in report.case_results if "quarterly metrics JSON snapshot" in case.question)
     assert "quarterly metrics dataset" in csv_case.question
     assert csv_case.result is not None
@@ -35,6 +43,24 @@ def test_acceptance_dataset_passes_with_fake_runner() -> None:
     assert [trace.worker_name for trace in hybrid_case.result.traces] == [
         "research",
         "analysis",
+        "writer",
+    ]
+    assert comparison_case.result is not None
+    assert comparison_case.result.workflow_plan.workflow_name == "comparison_then_write"
+    assert [trace.worker_name for trace in comparison_case.result.traces] == [
+        "comparison",
+        "writer",
+    ]
+    assert [invocation.tool_name for invocation in comparison_case.result.tool_invocations] == [
+        "local_file_context",
+        "csv_analysis",
+        "data_computation",
+    ]
+    assert hybrid_comparison_case.result is not None
+    assert hybrid_comparison_case.result.workflow_plan.workflow_name == "research_then_comparison_then_write"
+    assert [trace.worker_name for trace in hybrid_comparison_case.result.traces] == [
+        "research",
+        "comparison",
         "writer",
     ]
     assert "quarterly metrics JSON snapshot" in json_case.question
@@ -89,11 +115,25 @@ def test_acceptance_cli_writes_report_record(tmp_path) -> None:
     assert payload["failed_cases"] == 0
     assert len(records) == 1
     csv_case = next(case for case in payload["case_results"] if "quarterly metrics dataset and summarize" in case["question"])
-    hybrid_case = next(case for case in payload["case_results"] if "prioritize next" in case["question"])
+    hybrid_case = next(
+        case
+        for case in payload["case_results"]
+        if "analyze the bundled quarterly metrics dataset and recommend" in case["question"].lower()
+    )
+    comparison_case = next(
+        case for case in payload["case_results"] if "summarize the most important differences" in case["question"]
+    )
+    hybrid_comparison_case = next(
+        case
+        for case in payload["case_results"]
+        if "compare the bundled quarterly metrics datasets and recommend" in case["question"].lower()
+    )
     json_case = next(case for case in payload["case_results"] if "quarterly metrics JSON snapshot" in case["question"])
     assert "quarterly metrics dataset" in csv_case["question"]
     assert len(csv_case["result"]["tool_invocations"]) == 3
     assert hybrid_case["result"]["workflow_plan"]["workflow_name"] == "research_then_analysis_then_write"
+    assert comparison_case["result"]["workflow_plan"]["workflow_name"] == "comparison_then_write"
+    assert hybrid_comparison_case["result"]["workflow_plan"]["workflow_name"] == "research_then_comparison_then_write"
     assert [invocation["tool_name"] for invocation in json_case["result"]["tool_invocations"]] == [
         "local_file_context",
         "json_analysis",

@@ -17,7 +17,9 @@ class CSVAnalysisTool:
 
     def supports(self, *, task_type: str, question: str, context: dict[str, Any]) -> bool:
         candidate_paths: list[Path] = context.get("candidate_paths", [])
-        return task_type == "analysis" and any(path.suffix.lower() == ".csv" for path in candidate_paths)
+        return task_type in {"analysis", "comparison"} and any(
+            path.suffix.lower() == ".csv" for path in candidate_paths
+        )
 
     def run(self, *, task_type: str, question: str, context: dict[str, Any]) -> ToolExecutionResult:
         candidate_paths: list[Path] = context.get("candidate_paths", [])

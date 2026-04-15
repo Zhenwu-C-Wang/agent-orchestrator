@@ -9,7 +9,7 @@ from tools.registry import ToolExecutionResult
 
 class HttpFetchTool:
     name = "http_fetch"
-    purpose = "Fetch text-based HTTP content to ground URL-backed analysis requests."
+    purpose = "Fetch text-based HTTP content to ground URL-backed analysis and comparison requests."
 
     def __init__(self, *, timeout_seconds: float = 5.0, max_urls: int = 2, max_chars: int = 4000) -> None:
         self.timeout_seconds = timeout_seconds
@@ -17,7 +17,7 @@ class HttpFetchTool:
         self.max_chars = max_chars
 
     def supports(self, *, task_type: str, question: str, context: dict[str, Any]) -> bool:
-        return task_type == "analysis" and bool(context.get("candidate_urls"))
+        return task_type in {"analysis", "comparison"} and bool(context.get("candidate_urls"))
 
     def run(self, *, task_type: str, question: str, context: dict[str, Any]) -> ToolExecutionResult:
         candidate_urls: list[str] = context.get("candidate_urls", [])

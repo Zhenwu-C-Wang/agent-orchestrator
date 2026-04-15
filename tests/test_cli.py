@@ -258,6 +258,79 @@ def test_cli_routes_advisory_context_request_to_hybrid_workflow(tmp_path) -> Non
     assert [trace["worker_name"] for trace in payload["traces"]] == ["research", "analysis", "writer"]
 
 
+def test_cli_routes_compare_request_to_comparison_workflow(tmp_path) -> None:
+    current = tmp_path / "current.csv"
+    baseline = tmp_path / "baseline.csv"
+    current.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+    baseline.write_text("quarter,revenue\nQ1,8\nQ2,12\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "main.py",
+            "Compare these datasets and summarize the most important differences.",
+            "--runner",
+            "fake",
+            "--context-file",
+            str(current),
+            "--context-file",
+            str(baseline),
+            "--output",
+            "json",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(completed.stdout)
+
+    assert payload["workflow_plan"]["workflow_name"] == "comparison_then_write"
+    assert payload["comparison"] is not None
+    assert payload["analysis"] is None
+    assert [trace["worker_name"] for trace in payload["traces"]] == ["comparison", "writer"]
+    assert [invocation["tool_name"] for invocation in payload["tool_invocations"]] == [
+        "local_file_context",
+        "csv_analysis",
+        "data_computation",
+    ]
+
+
+def test_cli_routes_advisory_compare_request_to_hybrid_comparison_workflow(tmp_path) -> None:
+    current = tmp_path / "current.csv"
+    baseline = tmp_path / "baseline.csv"
+    current.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+    baseline.write_text("quarter,revenue\nQ1,8\nQ2,12\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "main.py",
+            "Compare these datasets and recommend which one we should prioritize next.",
+            "--runner",
+            "fake",
+            "--context-file",
+            str(current),
+            "--context-file",
+            str(baseline),
+            "--output",
+            "json",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(completed.stdout)
+
+    assert payload["workflow_plan"]["workflow_name"] == "research_then_comparison_then_write"
+    assert payload["research"] is not None
+    assert payload["comparison"] is not None
+    assert [trace["worker_name"] for trace in payload["traces"]] == ["research", "comparison", "writer"]
+
+
 def test_cli_outputs_markdown_workflow_result() -> None:
     completed = subprocess.run(
         [
