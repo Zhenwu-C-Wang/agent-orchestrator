@@ -1,18 +1,19 @@
 {
   "current_phase": "Phase 1 (Practical V1)",
-  "current_milestone": "M2: Local Model And Tooling",
-  "next_milestone": "M3: Usability Baseline",
-  "summary": "The project now has bounded workflow planning, research and analysis paths, structured traces, audit persistence, and a minimal Streamlit UI. The next push is to strengthen tool integration and make the usability layer more inspection-friendly.",
+  "current_milestone": "M3: Usability Baseline",
+  "next_milestone": "Phase 2: Dynamic Workflows",
+  "summary": "The project now has bounded workflow planning, tool-backed analysis, structured outputs in multiple formats, audit persistence, acceptance coverage, and a minimal Streamlit UI. The current push is to make these capabilities easier to understand and use through clearer architecture and quickstart guidance.",
   "completed_items": [
     "Closed-loop supervisor orchestration with research, writing, and optional review stages",
     "Bounded workflow planning that routes between research and analysis requests",
-    "Structured workflow output with workflow plans, traces, and intermediate results",
+    "Structured workflow output with pretty, JSON, and Markdown renderers",
+    "Local tool integration with file preview and CSV analysis adapters",
     "Local audit persistence, acceptance reporting, request cache, and retry plumbing",
-    "Minimal Streamlit UI for task input, plan preview, traces, and result export"
+    "Minimal Streamlit UI for task input, plan preview, traces, recent runs, and result export"
   ],
   "next_items": [
-    "Add ToolManager and the first practical tool adapters",
-    "Expose recent persisted runs and inspection details in the UI",
-    "Expand usability and integration tests around planning and UI-assisted workflows"
+    "Expand the tool registry beyond local file and CSV analysis",
+    "Add richer UI-assisted inspection and workflow guidance",
+    "Broaden workflow planning beyond the current bounded templates"
   ]
 }

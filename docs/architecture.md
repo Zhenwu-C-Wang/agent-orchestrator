@@ -1,16 +1,37 @@
 # Architecture Note
 
-This repository implements one narrow orchestration contract on purpose.
+This repository now implements a practical local-first orchestration framework rather than a single fixed MVP demo.
+
+## Current Shape
+
+The runtime is intentionally bounded:
+
+- `TaskPlanner` classifies a request into one of two workflow templates.
+- `TaskRouter` turns that plan into task inputs.
+- `Supervisor` executes the selected worker chain, collects traces, and aggregates tool invocation records.
+- `ResearchWorker`, `AnalysisWorker`, `WriterWorker`, and optional `ReviewWorker` stay focused on one contract each.
+- `ToolManager` owns bounded tool execution for the analysis path.
+- `ModelRunner` implementations own structured model calls, retries, and cache integration.
+
+The current workflow templates are:
+
+1. `research_then_write`
+2. `analysis_then_write`
+3. optional `review` appended to either path
 
 ## Responsibility Boundaries
 
-- `Supervisor` owns workflow execution, worker lookup, sequencing, and trace collection.
-- `TaskRouter` owns the fixed plan and task-input construction.
+- `Supervisor` owns workflow execution, worker lookup, sequencing, trace collection, and result aggregation.
+- `TaskPlanner` owns bounded workflow selection from the user request.
+- `TaskRouter` owns task-input construction from workflow steps and intermediate context.
 - `TaskManager` owns task identifiers and task envelope creation.
-- `ResearchWorker` owns only the research summary contract.
-- `WriterWorker` owns only final-answer generation from research output.
-- `ReviewWorker` owns only consistency checking between research output and final answer.
+- `ResearchWorker` owns research-summary generation only.
+- `AnalysisWorker` owns tool-backed analysis preparation plus structured analysis generation.
+- `WriterWorker` owns final-answer generation from one intermediate worker result.
+- `ReviewWorker` owns consistency checking between the intermediate worker result and the final answer.
 - `PromptManager` owns prompt wording and prompt payload construction.
+- `ToolManager` owns tool selection and structured invocation recording for supported tasks.
+- local tool adapters own one narrow execution behavior each, such as file preview or CSV summarization.
 - `ModelRunner` implementations own model invocation and structured parsing.
 - `AuditLogger` owns JSON persistence for completed or failed workflow runs.
 - `AuditStore` owns read-only inspection of persisted workflow runs.
@@ -21,59 +42,101 @@ This repository implements one narrow orchestration contract on purpose.
 - `orchestrator.cache` owns local cache inspection and maintenance commands.
 - `AgentOrchestratorError` and CLI wrappers own error classification and exit-code normalization.
 
-## Why The Workflow Is Fixed
+## Why Planning Is Bounded
 
-The project is proving orchestration mechanics first, not agent autonomy. A fixed `research -> writing` path prevents scope creep and makes schema regressions obvious. The optional `review` stage is constrained to validation, not autonomous replanning.
+The project now supports multiple workflow templates, but it still avoids open-ended autonomous planning. Bounded planning gives us:
+
+- predictable trace order
+- testable workflow selection
+- stable schemas across fake and Ollama runners
+- room to add more templates later without losing control of the first release
+
+## Why Tools Live Behind `ToolManager`
+
+Tool execution is intentionally isolated from worker orchestration and model invocation.
+
+That split keeps several things clean:
+
+- `AnalysisWorker` can request tool context without knowing how file inspection or CSV summarization are implemented.
+- tool invocations are recorded in one structured format and can surface in workflow results, audit records, CLI output, and the UI.
+- adding a new tool does not require rewriting supervisor logic.
+
+The current tool path is still local-first and guarded:
+
+- `local_file_context` reads a bounded preview of referenced local files
+- `csv_analysis` computes lightweight CSV structure and numeric summaries
 
 ## Why Two Runners Exist
 
-- `FakeModelRunner` gives deterministic output for local demos and tests.
-- `OllamaModelRunner` validates that the architecture can switch to a real local model without changing supervisor or worker code.
+- `FakeModelRunner` gives deterministic output for local demos, acceptance validation, and regression tests.
+- `OllamaModelRunner` validates that the same orchestration contract can run against a real local model.
+
+The key design constraint is that switching runners should not require changing planner, router, supervisor, or worker sequencing.
 
 ## Why Review Is Optional
 
-The review stage adds useful signal, but it also adds latency and another structured-output dependency. Keeping it behind a flag allows the base workflow to stay fast while the project hardens the consistency-check contract.
+The review stage adds useful validation but also adds latency and another structured-output dependency. Keeping it behind a flag allows the base workflow to stay fast while preserving a stable path for stricter checks.
 
-## Why Audit Logging Is Optional
+## Why Audit And Acceptance Persistence Stay File-Based
 
-Audit persistence is useful for debugging local-model behavior and preserving traces from real runs, but it should not be forced on every invocation. Making it opt-in keeps the default workflow clean while preserving a stable path for investigation.
+The current runtime is intentionally local-first. Audit and acceptance data are stored as JSON artifacts instead of introducing a database or daemon.
 
-## Why Status Query Reads Audit Artifacts
+That gives us:
 
-The current status layer is intentionally read-only. It reads persisted audit JSON files instead of introducing a database, daemon, or mutable runtime registry. That keeps the implementation simple and aligned with the local-first workflow.
+- easy inspection
+- easy cleanup
+- deterministic local testing
+- a simple persistence model for the Streamlit UI and CLI query commands
 
-## Why Acceptance Reports Persist Separately
+## Why Output Exists In Three Modes
 
-Acceptance runs answer a different question than workflow audit artifacts. Audit records preserve one workflow execution at a time, while acceptance records preserve one validation session across the fixed question set. Keeping them separate avoids mixing per-question traces with higher-level pass/fail history.
+The project now supports:
 
-## Why Acceptance Comparison Lives In The Store
+- `pretty` for terminal-first reading
+- `json` for automation and debugging
+- `markdown` for reports, docs, and sharing
 
-Acceptance comparison is data-oriented logic, not CLI logic. The store already owns loading and ordering persisted report records, so it is the right place to compute regression and improvement summaries without duplicating comparison rules across command paths.
+Each mode is produced from the same structured workflow result so presentation changes do not require re-running the orchestration.
 
-## Why Exit Codes Are Normalized
+## Why Acceptance Now Covers A Tool-Backed Case
 
-This project is increasingly scriptable. Once audit, cache, retries, and acceptance flows exist, shell automation needs something more precise than a generic non-zero exit. Typed exit codes let callers distinguish configuration mistakes from model failures and validation failures without parsing human-readable output.
+The acceptance dataset includes one CSV-backed analysis case that references `docs/sample_data/quarterly_metrics.csv`.
 
-## Why Retries Are Limited To The Model Layer
+That matters because we no longer only validate:
 
-Retrying the whole workflow would create duplicated worker executions and make trace reasoning harder. The current system only retries the Ollama invocation and structured parsing step, which improves resilience without changing orchestration semantics.
+- workflow routing
+- structured output
+- review behavior
 
-## Why Cache TTL Is Opt-In
+We also validate:
 
-The current cache is intentionally narrow. It reuses exact structured results for identical requests, and TTL expiry is optional because some local workflows prefer deterministic reuse over freshness heuristics. The implementation now handles simple staleness control, but it still avoids broader eviction and compatibility policy.
+- local file detection
+- tool invocation recording
+- tool-backed analysis synthesis
 
-## Why Cache Observability Lives In Task Traces
+## User-Facing Surfaces
 
-Cache behavior affects each worker step, not just the overall run. Surfacing `cache_hit`, `cache_status`, `cache_key`, and attempt metadata on `TaskTrace` keeps the signal close to the execution step that used it and automatically carries the same information into audit records.
+The current system is usable through:
+
+- `main.py` for one-off workflow execution
+- `orchestrator.runs` for audit inspection
+- `orchestrator.acceptance` and `orchestrator.acceptance_runs` for validation workflows
+- `orchestrator.cache` for cache inspection and maintenance
+- `app.py` for a minimal Streamlit console with workflow preview, run history, and result export
 
 ## What Is Deliberately Missing
 
-- retries
-- advanced cache invalidation and eviction policies
-- streaming
-- human approval
-- persistence
+- parallel execution
+- workflow-level retry and recovery
+- broad external API or web tool families
+- database-backed persistence
+- streaming UI updates
+- human approval checkpoints
+- multi-provider model routing
 
-In this list, "retries" now specifically means workflow-level retry and recovery policies. Lightweight model-layer retries are already implemented, and caching now specifically means broader cache lifecycle policy beyond exact request reuse and optional TTL expiry.
+Those are all reasonable future directions, but the current version is intentionally optimizing for:
 
-Those features are useful only after the base contract is stable.
+- local usability
+- inspectability
+- bounded orchestration
+- testability

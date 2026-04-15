@@ -2,8 +2,8 @@
 A supervisor-driven multi-agent system where a central orchestrator decomposes tasks, delegates to specialized worker agents, and synthesizes final outputs. Designed for controllability, observability, and production workflows.
 
 ## Status
-This repository now contains an executable MVP skeleton for a fixed `ResearchWorker -> WriterWorker` workflow. The default runner is deterministic for tests and demos, and the same flow can be switched to Ollama for local model execution.
-An optional `ReviewWorker` can be enabled to check whether the final answer remains consistent with the research result.
+This repository now contains a practical local-first orchestration framework with bounded workflow planning, research and analysis paths, tool-backed CSV analysis, structured outputs, audit persistence, and a minimal Streamlit console.
+The default runner is deterministic for tests and demos, and the same orchestration contract can be switched to Ollama for local model execution.
 
 ## Quickstart
 
@@ -14,6 +14,8 @@ pip install -e '.[dev]'
 pytest
 python main.py "How should I bootstrap a supervisor-worker system?" --runner fake
 ```
+
+For scenario-based walkthroughs, see [docs/quickstart.md](docs/quickstart.md).
 
 ## Streamlit UI
 
@@ -252,6 +254,7 @@ This MVP provides the **orchestration foundation** for a comprehensive multi-age
 - 🔹 **Plugin marketplace**: Community-contributed workers and tools
 - 🔹 **Advanced resource mgmt**: Cost optimization, rate limiting, resource pooling
 
+For current architecture details, see [docs/architecture.md](docs/architecture.md).
 For detailed roadmap, see [ROADMAP.md](ROADMAP.md) § 10 (Future Vision).
 
 ---
