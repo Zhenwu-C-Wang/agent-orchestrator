@@ -10,7 +10,9 @@ import streamlit as st
 from orchestrator.bootstrap import build_supervisor, format_markdown, format_pretty
 from orchestrator.inspection import (
     build_acceptance_overview,
+    build_acceptance_case_detail,
     build_cache_overview,
+    build_cache_entry_detail,
     build_plan_guidance,
     build_result_overview,
 )
@@ -319,6 +321,57 @@ def _render_acceptance_reports(report_dir: str) -> None:
             st.markdown("**Changed Cases**")
             st.dataframe(overview.changed_case_rows, use_container_width=True, hide_index=True)
 
+        selected_case_question = st.selectbox(
+            "Inspect acceptance case",
+            options=[case.question for case in selected.report.case_results],
+            key="acceptance_case_select",
+        )
+        selected_case = next(
+            case for case in selected.report.case_results if case.question == selected_case_question
+        )
+        selected_case_comparison = None
+        if comparison is not None:
+            selected_case_comparison = next(
+                (
+                    case
+                    for case in comparison.case_comparisons
+                    if case.question == selected_case_question
+                ),
+                None,
+            )
+        case_detail = build_acceptance_case_detail(
+            selected_case,
+            case_comparison=selected_case_comparison,
+        )
+        st.markdown(f"**{case_detail.headline}**")
+        st.caption(case_detail.summary)
+        _render_metrics(case_detail.metrics)
+        if case_detail.highlights:
+            st.markdown("**Case Highlights**")
+            for item in case_detail.highlights:
+                st.write(f"- {item}")
+        if case_detail.warnings:
+            st.markdown("**Case Warnings**")
+            for item in case_detail.warnings:
+                st.warning(item)
+        if case_detail.next_actions:
+            st.markdown("**Case Next Actions**")
+            for item in case_detail.next_actions:
+                st.write(f"- {item}")
+        if case_detail.result_overview is not None:
+            st.markdown(f"**{case_detail.result_overview.headline}**")
+            st.caption(case_detail.result_overview.summary)
+            _render_metrics(case_detail.result_overview.metrics)
+        if case_detail.trace_rows:
+            st.markdown("**Case Traces**")
+            st.dataframe(case_detail.trace_rows, use_container_width=True, hide_index=True)
+        if case_detail.tool_rows:
+            st.markdown("**Case Tools**")
+            st.dataframe(case_detail.tool_rows, use_container_width=True, hide_index=True)
+        if case_detail.final_answer_preview:
+            st.markdown("**Final Answer Preview**")
+            st.write(case_detail.final_answer_preview)
+
 
 def _render_recent_runs(audit_dir: str) -> None:
     st.subheader("Recent Runs")
@@ -376,7 +429,8 @@ def _render_cache_snapshot(cache_dir: str, cache_max_age_seconds: float | None) 
         cache_dir,
         max_age_seconds=cache_max_age_seconds,
     )
-    recent_entries = [cache.summarize_entry(entry) for entry in cache.list_entries(limit=5)]
+    cache_entries = cache.list_entries(limit=20)
+    recent_entries = [cache.summarize_entry(entry) for entry in cache_entries[:5]]
     overview = build_cache_overview(
         cache.summarize_cache(),
         recent_entries=recent_entries,
@@ -400,6 +454,47 @@ def _render_cache_snapshot(cache_dir: str, cache_max_age_seconds: float | None) 
     if overview.recent_entry_rows:
         st.markdown("**Recent Entries**")
         st.dataframe(overview.recent_entry_rows, use_container_width=True, hide_index=True)
+        selected_cache_key = st.selectbox(
+            "Inspect cache entry",
+            options=[entry.cache_key for entry in cache_entries],
+            format_func=lambda cache_key: next(
+                (
+                    f"{entry.created_at} | {entry.metadata.get('task_type') or 'n/a'} | {entry.metadata.get('response_model') or 'n/a'}"
+                    for entry in cache_entries
+                    if entry.cache_key == cache_key
+                ),
+                cache_key,
+            ),
+            key="cache_entry_select",
+        )
+        selected_entry = next(entry for entry in cache_entries if entry.cache_key == selected_cache_key)
+        entry_detail = build_cache_entry_detail(
+            selected_entry,
+            expired=cache.is_entry_expired(selected_entry),
+        )
+        st.markdown(f"**{entry_detail.headline}**")
+        st.caption(entry_detail.summary)
+        _render_metrics(entry_detail.metrics)
+        if entry_detail.highlights:
+            st.markdown("**Entry Highlights**")
+            for item in entry_detail.highlights:
+                st.write(f"- {item}")
+        if entry_detail.warnings:
+            st.markdown("**Entry Warnings**")
+            for item in entry_detail.warnings:
+                st.warning(item)
+        if entry_detail.next_actions:
+            st.markdown("**Entry Next Actions**")
+            for item in entry_detail.next_actions:
+                st.write(f"- {item}")
+        if entry_detail.metadata_rows:
+            st.markdown("**Entry Metadata**")
+            st.dataframe(entry_detail.metadata_rows, use_container_width=True, hide_index=True)
+        if entry_detail.response_preview:
+            st.markdown("**Response Preview**")
+            st.write(entry_detail.response_preview)
+        with st.expander("Cache Response JSON"):
+            st.json(selected_entry.response)
 
 
 def main() -> None:

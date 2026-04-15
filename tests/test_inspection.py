@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 
-from schemas.acceptance_schema import AcceptanceCaseResult, AcceptanceReport
+from schemas.acceptance_schema import AcceptanceCaseComparison, AcceptanceCaseResult, AcceptanceReport
 from orchestrator.inspection import (
     build_acceptance_overview,
+    build_acceptance_case_detail,
     build_cache_overview,
+    build_cache_entry_detail,
     build_plan_guidance,
     build_result_overview,
 )
@@ -196,3 +198,67 @@ def test_cache_overview_warns_about_expired_entries(tmp_path) -> None:
     assert overview.headline == "Cache Health"
     assert any(metric.label == "Expired" and metric.value == "3" for metric in overview.metrics)
     assert any("Expired cache entries are present" in warning for warning in overview.warnings)
+
+
+def test_acceptance_case_detail_surfaces_result_and_regression(tmp_path) -> None:
+    csv_path = tmp_path / "sales.csv"
+    csv_path.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake")
+    result = supervisor.run_with_context(
+        "Analyze this dataset and recommend what we should prioritize next.",
+        context_files=[str(csv_path)],
+    )
+    case = AcceptanceCaseResult(
+        question=result.question,
+        passed=False,
+        duration_ms=25,
+        errors=["writer drifted from evidence"],
+        warnings=["manual regression flag"],
+        trace_order=[trace.worker_name for trace in result.traces],
+        result=result,
+    )
+    comparison = AcceptanceCaseComparison(
+        question=result.question,
+        current_present=True,
+        baseline_present=True,
+        current_passed=False,
+        baseline_passed=True,
+        changed=True,
+        regression=True,
+        improvement=False,
+        current_error_count=1,
+        baseline_error_count=0,
+        current_warning_count=1,
+        baseline_warning_count=0,
+        duration_ms_delta=5,
+    )
+
+    detail = build_acceptance_case_detail(case, case_comparison=comparison)
+
+    assert detail.headline == "Acceptance Case Detail"
+    assert any(metric.label == "Passed" and metric.value == "No" for metric in detail.metrics)
+    assert any("regressed" in warning.lower() for warning in detail.warnings)
+    assert detail.result_overview is not None
+    assert detail.trace_rows[0]["worker"] == "research"
+    assert detail.tool_rows[0]["tool_name"] == "local_file_context"
+    assert detail.final_answer_preview is not None
+
+
+def test_cache_entry_detail_surfaces_preview_and_expiry(tmp_path) -> None:
+    cache_dir = tmp_path / "cache"
+    supervisor = build_supervisor(
+        runner_name="fake",
+        enable_review=True,
+        cache_dir=str(cache_dir),
+    )
+    supervisor.run("How should I bootstrap a supervisor-worker system?")
+
+    cache = StructuredResultCache(cache_dir, max_age_seconds=60)
+    entry = cache.list_entries(limit=1)[0]
+    detail = build_cache_entry_detail(entry, expired=False)
+
+    assert detail.headline == "Cache Entry Detail"
+    assert any(metric.label == "Response" for metric in detail.metrics)
+    assert detail.response_preview is not None
+    assert any(row["key"] == "task_type" for row in detail.metadata_rows)

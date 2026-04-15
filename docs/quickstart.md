@@ -176,3 +176,4 @@ The UI is useful when you want to:
 - export JSON, Markdown, or text summaries
 - review recent persisted runs with the same inspection summary if an audit directory is configured
 - inspect persisted acceptance reports and local cache health from the same console when those directories are configured
+- drill into one acceptance case or one cache entry when you need to inspect regressions, traces, tool usage, metadata, or response previews

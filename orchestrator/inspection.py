@@ -4,7 +4,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from schemas.acceptance_schema import AcceptanceComparison, AcceptanceRecord
+from schemas.acceptance_schema import AcceptanceCaseComparison, AcceptanceCaseResult, AcceptanceComparison, AcceptanceRecord
+from schemas.cache_schema import CacheEntry
 from schemas.result_schema import WorkflowResult
 from schemas.task_schema import WorkflowPlan
 
@@ -61,6 +62,32 @@ class CacheOverview:
     warnings: list[str] = field(default_factory=list)
     next_actions: list[str] = field(default_factory=list)
     recent_entry_rows: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class AcceptanceCaseDetail:
+    headline: str
+    summary: str
+    metrics: list[InspectionMetric] = field(default_factory=list)
+    highlights: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    next_actions: list[str] = field(default_factory=list)
+    trace_rows: list[dict[str, Any]] = field(default_factory=list)
+    tool_rows: list[dict[str, Any]] = field(default_factory=list)
+    final_answer_preview: str | None = None
+    result_overview: ResultOverview | None = None
+
+
+@dataclass(frozen=True)
+class CacheEntryDetail:
+    headline: str
+    summary: str
+    metrics: list[InspectionMetric] = field(default_factory=list)
+    highlights: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    next_actions: list[str] = field(default_factory=list)
+    metadata_rows: list[dict[str, str]] = field(default_factory=list)
+    response_preview: str | None = None
 
 
 def build_plan_guidance(plan: WorkflowPlan, *, question: str) -> PlanGuidance:
@@ -373,6 +400,148 @@ def build_cache_overview(
     )
 
 
+def build_acceptance_case_detail(
+    case: AcceptanceCaseResult,
+    *,
+    case_comparison: AcceptanceCaseComparison | None = None,
+) -> AcceptanceCaseDetail:
+    metrics = [
+        InspectionMetric("Passed", "Yes" if case.passed else "No"),
+        InspectionMetric("Errors", str(len(case.errors))),
+        InspectionMetric("Warnings", str(len(case.warnings))),
+        InspectionMetric("Duration", _format_duration(case.duration_ms)),
+    ]
+    summary = (
+        "This acceptance case passed."
+        if case.passed
+        else "This acceptance case failed and should be inspected before using the run as a baseline."
+    )
+    if case_comparison is not None and case_comparison.changed:
+        summary = (
+            f"{summary} Relative to baseline, regression={case_comparison.regression}, "
+            f"improvement={case_comparison.improvement}."
+        )
+
+    highlights = [
+        f"Trace order length: {len(case.trace_order)}.",
+    ]
+    if case.result is not None:
+        highlights.append(f"Workflow: {case.result.workflow_plan.workflow_name}.")
+        highlights.append(f"Tool invocations: {len(case.result.tool_invocations)}.")
+    if case_comparison is not None and case_comparison.changed:
+        highlights.append(
+            f"Baseline warnings: {case_comparison.baseline_warning_count}, current warnings: {case_comparison.current_warning_count}."
+        )
+
+    warnings = list(case.warnings)
+    if not case.passed:
+        warnings.extend(case.errors)
+    if case_comparison is not None and case_comparison.regression:
+        warnings.append("This case regressed relative to the selected baseline.")
+
+    next_actions: list[str] = []
+    if not case.passed:
+        next_actions.append("Inspect the failing result or error path before trusting this case outcome.")
+    if case.result is None:
+        next_actions.append("This case has no structured workflow result, so audit artifacts are the next place to inspect.")
+    elif case.result.review is None:
+        next_actions.append("Enable review on a follow-up run if you want a stricter validation path for this case.")
+    if case_comparison is not None and case_comparison.improvement:
+        next_actions.append("Keep comparing against the previous baseline to verify that this improvement remains stable.")
+
+    trace_rows: list[dict[str, Any]] = []
+    tool_rows: list[dict[str, Any]] = []
+    final_answer_preview: str | None = None
+    result_overview: ResultOverview | None = None
+    if case.result is not None:
+        result_overview = build_result_overview(case.result)
+        trace_rows = [
+            {
+                "worker": trace.worker_name,
+                "task_type": trace.task_type.value,
+                "status": trace.status,
+                "duration_ms": str(trace.duration_ms),
+            }
+            for trace in case.result.traces
+        ]
+        tool_rows = [
+            {
+                "tool_name": invocation.tool_name,
+                "status": invocation.status,
+                "duration_ms": str(invocation.duration_ms),
+                "output_summary": invocation.output_summary or "n/a",
+            }
+            for invocation in case.result.tool_invocations
+        ]
+        final_answer_preview = case.result.final_answer.answer
+
+    return AcceptanceCaseDetail(
+        headline="Acceptance Case Detail",
+        summary=summary,
+        metrics=metrics,
+        highlights=highlights,
+        warnings=_dedupe_preserve_order(warnings),
+        next_actions=_dedupe_preserve_order(next_actions),
+        trace_rows=trace_rows,
+        tool_rows=tool_rows,
+        final_answer_preview=final_answer_preview,
+        result_overview=result_overview,
+    )
+
+
+def build_cache_entry_detail(
+    entry: CacheEntry,
+    *,
+    expired: bool,
+) -> CacheEntryDetail:
+    response_model = str(entry.metadata.get("response_model") or "n/a")
+    task_type = str(entry.metadata.get("task_type") or "n/a")
+    runner = str(entry.metadata.get("runner") or "n/a")
+    model = str(entry.metadata.get("model") or "n/a")
+    metrics = [
+        InspectionMetric("Expired", "Yes" if expired else "No"),
+        InspectionMetric("Task", task_type),
+        InspectionMetric("Response", response_model),
+        InspectionMetric("Runner", runner),
+    ]
+    summary = (
+        f"This cache entry stores a cached `{response_model}` response for task type `{task_type}`."
+    )
+    highlights = [
+        f"Created at: {entry.created_at}.",
+        f"Model: {model}.",
+        f"Response fields: {', '.join(sorted(entry.response.keys())) if entry.response else 'none'}.",
+    ]
+    warnings: list[str] = []
+    if expired:
+        warnings.append("This cache entry is expired under the current TTL configuration.")
+    if not entry.response:
+        warnings.append("This cache entry has no response payload to preview.")
+
+    next_actions: list[str] = []
+    if expired:
+        next_actions.append("Prune expired cache entries before using this snapshot to judge reuse quality.")
+    else:
+        next_actions.append("Compare this entry's task type and response model against neighboring entries to assess cache spread.")
+
+    metadata_rows = [
+        {"key": str(key), "value": str(value)}
+        for key, value in sorted(entry.metadata.items())
+    ]
+
+    response_preview = _response_preview(entry.response)
+    return CacheEntryDetail(
+        headline="Cache Entry Detail",
+        summary=summary,
+        metrics=metrics,
+        highlights=highlights,
+        warnings=warnings,
+        next_actions=_dedupe_preserve_order(next_actions),
+        metadata_rows=metadata_rows,
+        response_preview=response_preview,
+    )
+
+
 def _route_label(workflow_name: str) -> str:
     if workflow_name == "research_then_comparison_then_write":
         return "Hybrid Comparison Route"
@@ -480,6 +649,20 @@ def _format_duration(duration_ms: int) -> str:
     if duration_ms < 1000:
         return f"{duration_ms} ms"
     return f"{duration_ms / 1000:.2f} s"
+
+
+def _response_preview(response: dict[str, Any]) -> str | None:
+    for key in ("answer", "summary", "verdict", "question"):
+        value = response.get(key)
+        if isinstance(value, str) and value.strip():
+            return _truncate_text(value.strip(), max_chars=240)
+    return None
+
+
+def _truncate_text(value: str, *, max_chars: int) -> str:
+    if len(value) <= max_chars:
+        return value
+    return f"{value[: max_chars - 3].rstrip()}..."
 
 
 def _dedupe_preserve_order(items: list[str]) -> list[str]:

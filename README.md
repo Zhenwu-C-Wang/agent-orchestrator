@@ -28,6 +28,7 @@ streamlit run app.py
 
 The UI also reads `docs/project_status.json` for a lightweight milestone snapshot, surfaces guided workflow warnings before execution, and shows recent persisted runs when an audit directory is configured.
 Completed runs now render through guided inspection tabs for overview, intermediates, tools, traces, exports, and raw JSON, and the operations panel can also inspect persisted acceptance reports plus local cache health when those directories are configured.
+Those operational views now include drill-downs for individual acceptance cases and cache entries.
 
 Enable the optional review stage:
 
