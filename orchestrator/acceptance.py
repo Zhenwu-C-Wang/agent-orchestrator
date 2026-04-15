@@ -9,13 +9,15 @@ from schemas.result_schema import WorkflowResult
 from tools.acceptance import AcceptanceLogger
 from tools.errors import AcceptanceFailedError, run_cli
 
+ACCEPTANCE_SAMPLE_CSV = "docs/sample_data/quarterly_metrics.csv"
+
 ACCEPTANCE_QUESTIONS = [
     "How should I bootstrap a supervisor-worker agent system?",
     "What are the tradeoffs of fake runners versus local models in an MVP?",
     "How should I define worker schemas before adding more workers?",
     "What risks appear when a supervisor directly writes the final answer?",
     "When should I add retry, cache, and audit layers to this system?",
-    "Analyze a local CSV file and summarize the most important changes.",
+    f"Analyze `{ACCEPTANCE_SAMPLE_CSV}` and summarize the most important changes.",
 ]
 
 def _has_content(value: str) -> bool:
@@ -25,6 +27,7 @@ def _has_content(value: str) -> bool:
 def evaluate_result(result: WorkflowResult, *, expect_review: bool) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
+    expects_tool_path = bool(result.workflow_plan.metadata.get("has_local_files"))
 
     intermediate_points: list[str] = []
     if result.research is not None:
@@ -61,6 +64,14 @@ def evaluate_result(result: WorkflowResult, *, expect_review: bool) -> tuple[lis
             errors.append("Review verdict is empty.")
         if not result.review.consistent and not result.review.issues:
             warnings.append("Review marked the answer inconsistent but did not provide issues.")
+
+    if expects_tool_path:
+        if not result.tool_invocations:
+            errors.append("Tool-backed workflow did not record any tool invocations.")
+        elif any(invocation.status != "completed" for invocation in result.tool_invocations):
+            errors.append("One or more tool invocations did not complete successfully.")
+    elif result.tool_invocations:
+        warnings.append("Tool invocations were recorded for a workflow that did not require local files.")
 
     overlapping_points = set(intermediate_points) & set(result.final_answer.supporting_points)
     if not overlapping_points:

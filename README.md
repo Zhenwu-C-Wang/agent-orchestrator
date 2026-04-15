@@ -170,7 +170,7 @@ python -m orchestrator.cache --cache-dir artifacts/cache clear
 
 ## Acceptance Run
 
-Run the fixed 5-question acceptance dataset with the fake runner:
+Run the 6-question acceptance dataset with the fake runner:
 
 ```bash
 python -m orchestrator.acceptance --runner fake
@@ -182,6 +182,7 @@ Run the same dataset against a local Ollama model:
 python -m orchestrator.acceptance --runner ollama --model qwen2.5:14b
 ```
 
+The dataset includes one tool-backed CSV analysis case that references `docs/sample_data/quarterly_metrics.csv`.
 Use `--output json` if you want the full structured report.
 Add `--with-review` to validate the optional three-stage workflow.
 Add `--report-dir artifacts/acceptance` if you want one persisted acceptance record per run.
