@@ -4,11 +4,13 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
+from urllib.parse import urlparse
 from typing import Any, Protocol
 
 from schemas.tool_schema import ToolInvocation
 
 _BACKTICKED_PATH_PATTERN = re.compile(r"`([^`]+)`")
+_URL_PATTERN = re.compile(r"(?P<url>https?://[^\s`]+)")
 _PATH_TOKEN_PATTERN = re.compile(
     r"(?P<path>(?:\./|\.\./|/)[^\s,;:]+|[A-Za-z0-9_.\-/]+\.(?:csv|txt|md|json|py|yaml|yml))"
 )
@@ -57,11 +59,33 @@ def normalize_local_file_paths(
     return resolved
 
 
+def normalize_http_urls(urls: list[str] | None) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw in urls or []:
+        cleaned = str(raw).strip().strip("()[]{}<>\"'").rstrip(".,;:!?")
+        if not cleaned:
+            continue
+        parsed = urlparse(cleaned)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            continue
+        if cleaned in seen:
+            continue
+        seen.add(cleaned)
+        normalized.append(cleaned)
+    return normalized
+
+
 def find_local_file_paths(question: str, *, base_dir: str | Path | None = None) -> list[Path]:
     candidates: list[str] = []
     candidates.extend(match.group(1) for match in _BACKTICKED_PATH_PATTERN.finditer(question))
     candidates.extend(match.group("path") for match in _PATH_TOKEN_PATTERN.finditer(question))
     return normalize_local_file_paths(candidates, base_dir=base_dir)
+
+
+def find_http_urls(question: str) -> list[str]:
+    candidates = [match.group("url") for match in _URL_PATTERN.finditer(question)]
+    return normalize_http_urls(candidates)
 
 
 class ToolManager:
@@ -82,10 +106,13 @@ class ToolManager:
         task_type: str,
         question: str,
         explicit_paths: list[str | Path] | None = None,
+        explicit_urls: list[str] | None = None,
     ) -> tuple[dict[str, Any], list[ToolInvocation]]:
         candidate_paths = self._candidate_paths(question=question, explicit_paths=explicit_paths)
+        candidate_urls = self._candidate_urls(question=question, explicit_urls=explicit_urls)
         base_context: dict[str, Any] = {
             "candidate_paths": candidate_paths,
+            "candidate_urls": candidate_urls,
         }
         combined_context: dict[str, Any] = {}
         invocations: list[ToolInvocation] = []
@@ -142,4 +169,21 @@ class ToolManager:
                 continue
             seen.add(path)
             ordered.append(path)
+        return ordered
+
+    def _candidate_urls(
+        self,
+        *,
+        question: str,
+        explicit_urls: list[str] | None = None,
+    ) -> list[str]:
+        discovered = find_http_urls(question)
+        explicit = normalize_http_urls(explicit_urls)
+        ordered: list[str] = []
+        seen: set[str] = set()
+        for url in [*explicit, *discovered]:
+            if url in seen:
+                continue
+            seen.add(url)
+            ordered.append(url)
         return ordered

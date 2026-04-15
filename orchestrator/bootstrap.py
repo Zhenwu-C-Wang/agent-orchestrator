@@ -13,6 +13,7 @@ from tools.audit import AuditLogger
 from tools.cache import StructuredResultCache
 from tools.csv_analysis_tool import CSVAnalysisTool
 from tools.errors import ConfigurationError
+from tools.http_fetch_tool import HttpFetchTool
 from tools.local_file_tool import LocalFileContextTool
 from tools.registry import ToolManager
 from tools.retry import RetryPolicy
@@ -76,6 +77,7 @@ def build_supervisor(
         tools=[
             LocalFileContextTool(),
             CSVAnalysisTool(),
+            HttpFetchTool(),
         ]
     )
     workers = {

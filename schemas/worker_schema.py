@@ -12,6 +12,7 @@ class ResearchTaskInput(BaseModel):
 class AnalysisTaskInput(BaseModel):
     question: str
     context_files: list[str] = []
+    context_urls: list[str] = []
 
 
 class WriterTaskInput(BaseModel):

@@ -47,6 +47,7 @@ class FakeModelRunner(StructuredModelRunner):
             tool_context = request.payload.get("tool_context") or {}
             local_files = tool_context.get("local_files", [])
             csv_summaries = tool_context.get("csv_summaries", [])
+            web_pages = tool_context.get("web_pages", [])
             summary = f"Analysis summary for: {question}"
             findings = [
                 "Start with a narrow analysis objective before adding more tooling.",
@@ -55,7 +56,7 @@ class FakeModelRunner(StructuredModelRunner):
             ]
             metrics = [
                 "workflow_path=analysis_then_write",
-                f"tool_invocation_count={len(local_files) + len(csv_summaries)}",
+                f"tool_invocation_count={len(local_files) + len(csv_summaries) + len(web_pages)}",
             ]
             caveats = [
                 "This analysis output is deterministic and does not execute real code.",
@@ -73,6 +74,15 @@ class FakeModelRunner(StructuredModelRunner):
                     metrics.append(
                         f"{summary_item['name']}:columns={len(summary_item['columns'])},"
                         f"sample_rows={summary_item['sample_row_count']}"
+                    )
+            if web_pages:
+                urls = ", ".join(page["url"] for page in web_pages)
+                summary = f"{summary} Fetched HTTP context from: {urls}."
+                findings.append("HTTP content previews were incorporated into the analysis context.")
+                for page in web_pages:
+                    metrics.append(
+                        f"{page['url']}:content_type={page['content_type']},"
+                        f"preview_chars={page['preview_char_count']}"
                     )
             payload = {
                 "question": question,

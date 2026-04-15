@@ -1,4 +1,5 @@
 from main import build_supervisor
+from tests.http_fixtures import install_http_fetch_stub
 
 
 def test_supervisor_runs_the_closed_loop_workflow() -> None:
@@ -62,3 +63,19 @@ def test_supervisor_uses_explicit_context_files_without_question_path(tmp_path) 
         "local_file_context",
         "csv_analysis",
     ]
+
+
+def test_supervisor_records_http_tool_invocations_for_context_urls(monkeypatch) -> None:
+    supervisor = build_supervisor(runner_name="fake")
+    url = install_http_fetch_stub(monkeypatch, body="service status is healthy")
+
+    result = supervisor.run_with_context(
+        "Summarize the most important findings from this webpage.",
+        context_urls=[url],
+    )
+
+    assert result.analysis is not None
+    assert result.workflow_plan.workflow_name == "analysis_then_write"
+    assert result.workflow_plan.metadata["context_url_count"] == 1
+    assert [invocation.tool_name for invocation in result.tool_invocations] == ["http_fetch"]
+    assert url in result.analysis.summary

@@ -34,15 +34,30 @@ def _persist_uploaded_files(uploaded_files: list[object]) -> list[str]:
     return persisted_paths
 
 
-def _render_plan_preview(question: str, enable_review: bool, context_files: list[str]) -> None:
+def _parse_context_urls(raw_value: str) -> list[str]:
+    return [line.strip() for line in raw_value.splitlines() if line.strip()]
+
+
+def _render_plan_preview(
+    question: str,
+    enable_review: bool,
+    context_files: list[str],
+    context_urls: list[str],
+) -> None:
     planner = TaskPlanner(enable_review=enable_review)
-    plan = planner.build_plan(question, context_files=context_files)
+    plan = planner.build_plan(
+        question,
+        context_files=context_files,
+        context_urls=context_urls,
+    )
 
     st.subheader("Workflow Plan")
     st.caption(plan.rationale)
     st.markdown(f"**Selected workflow:** `{plan.workflow_name}`")
     if context_files:
         st.write(f"Context files: `{len(context_files)}` attached")
+    if context_urls:
+        st.write(f"Context URLs: `{len(context_urls)}` attached")
     for index, step in enumerate(plan.steps, start=1):
         st.write(f"{index}. `{step.worker_name}` -> `{step.output_schema}`")
 
@@ -249,6 +264,11 @@ def main() -> None:
             "Attach context files",
             accept_multiple_files=True,
         )
+        context_urls_raw = st.text_area(
+            "Attach context URLs",
+            value="",
+            help="One URL per line.",
+        )
         audit_dir = st.text_input("Audit directory", value="artifacts/runs")
         cache_dir = st.text_input("Cache directory", value="")
         cache_max_age_seconds = st.number_input(
@@ -267,10 +287,11 @@ def main() -> None:
 
     question = st.text_area("Task Input", value=DEFAULT_QUESTION, height=140)
     context_files = _persist_uploaded_files(uploaded_context_files)
+    context_urls = _parse_context_urls(context_urls_raw)
 
     left, right = st.columns([1, 1])
     with left:
-        _render_plan_preview(question, enable_review, context_files)
+        _render_plan_preview(question, enable_review, context_files, context_urls)
     with right:
         _render_project_status()
 
@@ -281,6 +302,7 @@ def main() -> None:
         st.write(f"Model: `{model if runner_name == 'ollama' else 'n/a'}`")
         st.write(f"Review enabled: `{enable_review}`")
         st.write(f"Attached context files: `{len(context_files)}`")
+        st.write(f"Attached context URLs: `{len(context_urls)}`")
         st.write(f"Audit dir: `{audit_dir or 'disabled'}`")
         st.write(f"Cache dir: `{cache_dir or 'disabled'}`")
     with settings_right:
@@ -309,6 +331,7 @@ def main() -> None:
                 st.session_state["last_result"] = supervisor.run_with_context(
                     question,
                     context_files=context_files,
+                    context_urls=context_urls,
                 )
         except Exception as exc:  # pragma: no cover - UI error display path
             st.session_state["last_error"] = str(exc)

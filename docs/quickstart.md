@@ -43,7 +43,26 @@ python main.py "Summarize the most important changes in this data." \
   --output json
 ```
 
-## 3. Persist And Inspect A Run
+## 3. URL-Backed Analysis Workflow
+
+Attach one or more URLs explicitly when you want the analysis path to ground itself in fetched page content:
+
+```bash
+python main.py "Summarize the most important findings from this webpage." \
+  --runner fake \
+  --context-url https://example.com/report \
+  --output markdown
+```
+
+What to look for:
+
+- workflow selection should be `analysis_then_write`
+- `tool_invocations` should include `http_fetch`
+- the analysis summary should mention the fetched URL context
+
+The Streamlit sidebar exposes the same capability through a multiline URL input.
+
+## 4. Persist And Inspect A Run
 
 Write audit output while running a workflow:
 
@@ -61,7 +80,7 @@ python -m orchestrator.runs --audit-dir artifacts/runs list
 python -m orchestrator.runs --audit-dir artifacts/runs latest --output json
 ```
 
-## 4. Run The Acceptance Dataset
+## 5. Run The Acceptance Dataset
 
 Run the full acceptance suite locally:
 
@@ -82,7 +101,7 @@ python -m orchestrator.acceptance --runner fake --report-dir artifacts/acceptanc
 python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance compare
 ```
 
-## 5. Use The Streamlit Console
+## 6. Use The Streamlit Console
 
 Launch the local UI:
 

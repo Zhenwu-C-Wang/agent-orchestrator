@@ -43,6 +43,12 @@ def parse_args() -> argparse.Namespace:
         help="Optional local file path to attach as explicit analysis context. Repeat to add more than one.",
     )
     parser.add_argument(
+        "--context-url",
+        action="append",
+        default=[],
+        help="Optional URL to attach as explicit analysis context. Repeat to add more than one.",
+    )
+    parser.add_argument(
         "--audit-dir",
         default=None,
         help="Optional directory where one JSON audit record will be written per run.",
@@ -89,6 +95,7 @@ def _main() -> None:
     result = supervisor.run_with_context(
         args.question,
         context_files=args.context_file,
+        context_urls=args.context_url,
     )
     if args.output == "json":
         print(result.model_dump_json(indent=2))

@@ -98,6 +98,33 @@ def test_cli_accepts_explicit_context_file_argument(tmp_path) -> None:
     ]
 
 
+def test_cli_accepts_explicit_context_url_argument() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "main.py",
+            "Summarize the most important findings from this webpage.",
+            "--runner",
+            "fake",
+            "--context-url",
+            "http://127.0.0.1:1/context",
+            "--output",
+            "json",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(completed.stdout)
+
+    assert payload["workflow_plan"]["workflow_name"] == "analysis_then_write"
+    assert payload["workflow_plan"]["metadata"]["context_url_count"] == 1
+    assert [invocation["tool_name"] for invocation in payload["tool_invocations"]] == ["http_fetch"]
+    assert payload["tool_invocations"][0]["status"] == "failed"
+
+
 def test_cli_outputs_markdown_workflow_result() -> None:
     completed = subprocess.run(
         [

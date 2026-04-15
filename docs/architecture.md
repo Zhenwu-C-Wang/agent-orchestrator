@@ -61,10 +61,11 @@ That split keeps several things clean:
 - tool invocations are recorded in one structured format and can surface in workflow results, audit records, CLI output, and the UI.
 - adding a new tool does not require rewriting supervisor logic.
 
-The current tool path is still local-first and guarded:
+The current tool path is still bounded and guarded:
 
 - `local_file_context` reads a bounded preview of referenced local files
 - `csv_analysis` computes lightweight CSV structure and numeric summaries
+- `http_fetch` fetches a small text preview from explicitly attached or referenced URLs
 
 ## Why Two Runners Exist
 
@@ -113,6 +114,7 @@ We also validate:
 - local file detection
 - tool invocation recording
 - tool-backed analysis synthesis
+- bounded HTTP-backed context analysis through local integration tests
 
 ## User-Facing Surfaces
 

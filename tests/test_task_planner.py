@@ -43,3 +43,15 @@ def test_task_planner_uses_analysis_workflow_for_explicit_context_files(tmp_path
     assert [step.worker_name for step in plan.steps] == ["analysis", "writer"]
     assert plan.metadata["has_local_files"] is True
     assert plan.metadata["context_file_count"] == 1
+
+
+def test_task_planner_uses_analysis_workflow_for_explicit_context_urls() -> None:
+    plan = TaskPlanner().build_plan(
+        "Summarize this webpage for me.",
+        context_urls=["https://example.com/report"],
+    )
+
+    assert plan.workflow_name == "analysis_then_write"
+    assert [step.worker_name for step in plan.steps] == ["analysis", "writer"]
+    assert plan.metadata["has_context_urls"] is True
+    assert plan.metadata["context_url_count"] == 1

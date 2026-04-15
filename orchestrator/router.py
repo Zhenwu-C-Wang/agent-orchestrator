@@ -16,6 +16,7 @@ class TaskRouter:
             return {
                 "question": question,
                 "context_files": list(context.get("context_files", [])),
+                "context_urls": list(context.get("context_urls", [])),
             }
         if step.task_type is TaskType.WRITING:
             return {

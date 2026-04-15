@@ -2,7 +2,7 @@
 A supervisor-driven multi-agent system where a central orchestrator decomposes tasks, delegates to specialized worker agents, and synthesizes final outputs. Designed for controllability, observability, and production workflows.
 
 ## Status
-This repository now contains a practical local-first orchestration framework with bounded workflow planning, research and analysis paths, tool-backed CSV analysis, structured outputs, audit persistence, and a minimal Streamlit console.
+This repository now contains a practical local-first orchestration framework with bounded workflow planning, research and analysis paths, tool-backed local and HTTP context analysis, structured outputs, audit persistence, and a minimal Streamlit console.
 The default runner is deterministic for tests and demos, and the same orchestration contract can be switched to Ollama for local model execution.
 
 ## Quickstart
@@ -49,7 +49,7 @@ python main.py "How should I bootstrap a supervisor-worker system?" \
 By default the Ollama client calls `http://localhost:11434`.
 By default the Ollama runner uses `--max-retries 1 --retry-backoff-seconds 0.25` for model-layer retries only.
 
-## Explicit Context Files
+## Explicit Context Inputs
 
 You can attach local files explicitly instead of embedding paths in the question:
 
@@ -61,6 +61,17 @@ python main.py "Summarize the most important changes in this data." \
 ```
 
 Repeat `--context-file` to attach more than one local file. The Streamlit UI exposes the same capability through the sidebar file uploader.
+
+You can also attach URLs explicitly:
+
+```bash
+python main.py "Summarize the most important findings from this webpage." \
+  --runner fake \
+  --context-url https://example.com/report \
+  --output markdown
+```
+
+Repeat `--context-url` to attach more than one URL. The Streamlit UI exposes the same capability through the sidebar URL input.
 
 ## Output Modes
 

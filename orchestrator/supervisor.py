@@ -36,14 +36,21 @@ class Supervisor:
         question: str,
         *,
         context_files: list[str] | None = None,
+        context_urls: list[str] | None = None,
     ) -> WorkflowResult:
         normalized_context_files = list(context_files or [])
+        normalized_context_urls = list(context_urls or [])
         context: dict[str, object] = {
             "context_files": normalized_context_files,
+            "context_urls": normalized_context_urls,
         }
         traces: list[TaskTrace] = []
         tool_invocations: list[ToolInvocation] = []
-        workflow_plan = self.planner.build_plan(question, context_files=normalized_context_files)
+        workflow_plan = self.planner.build_plan(
+            question,
+            context_files=normalized_context_files,
+            context_urls=normalized_context_urls,
+        )
         research_result: ResearchResult | None = None
         analysis_result: AnalysisResult | None = None
         final_answer: FinalAnswer | None = None
@@ -58,6 +65,7 @@ class Supervisor:
                 metadata={
                     "question": question,
                     "context_files": normalized_context_files,
+                    "context_urls": normalized_context_urls,
                 },
             )
 

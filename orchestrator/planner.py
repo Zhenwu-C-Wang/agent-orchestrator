@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from schemas.task_schema import TaskType, WorkflowPlan, WorkflowStep
-from tools.registry import find_local_file_paths, normalize_local_file_paths
+from tools.registry import (
+    find_http_urls,
+    find_local_file_paths,
+    normalize_http_urls,
+    normalize_local_file_paths,
+)
 
 
 class TaskPlanner:
@@ -15,15 +20,15 @@ class TaskPlanner:
         question: str,
         *,
         context_files: list[str] | None = None,
+        context_urls: list[str] | None = None,
     ) -> WorkflowPlan:
         lowered = question.lower()
-        has_local_files = bool(
-            find_local_file_paths(question) or normalize_local_file_paths(context_files)
-        )
+        has_local_files = bool(find_local_file_paths(question) or normalize_local_file_paths(context_files))
+        has_context_urls = bool(find_http_urls(question) or normalize_http_urls(context_urls))
         is_analysis = any(
             keyword in lowered
             for keyword in ("analyze", "analyse", "analysis", "dataset", "csv", "data file")
-        ) or has_local_files
+        ) or has_local_files or has_context_urls
 
         if is_analysis:
             steps = [
@@ -46,6 +51,11 @@ class TaskPlanner:
                 rationale = (
                     "The request references one or more local files, so the workflow starts with "
                     "AnalysisWorker and its tool-backed analysis path before synthesis."
+                )
+            elif has_context_urls:
+                rationale = (
+                    "The request references one or more URLs, so the workflow starts with "
+                    "AnalysisWorker and its HTTP-backed analysis path before synthesis."
                 )
             workflow_name = "analysis_then_write"
         else:
@@ -85,5 +95,7 @@ class TaskPlanner:
                 "question_type": "analysis" if is_analysis else "research",
                 "has_local_files": has_local_files,
                 "context_file_count": len(normalize_local_file_paths(context_files)),
+                "has_context_urls": has_context_urls,
+                "context_url_count": len(normalize_http_urls(context_urls)),
             },
         )

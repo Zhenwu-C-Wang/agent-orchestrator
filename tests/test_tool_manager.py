@@ -1,8 +1,10 @@
 from pathlib import Path
 
+from tests.http_fixtures import install_http_fetch_stub
 from tools.csv_analysis_tool import CSVAnalysisTool
+from tools.http_fetch_tool import HttpFetchTool
 from tools.local_file_tool import LocalFileContextTool
-from tools.registry import ToolManager, find_local_file_paths
+from tools.registry import ToolManager, find_http_urls, find_local_file_paths
 
 
 def test_find_local_file_paths_resolves_backticked_files(tmp_path: Path) -> None:
@@ -12,6 +14,12 @@ def test_find_local_file_paths_resolves_backticked_files(tmp_path: Path) -> None
     paths = find_local_file_paths(f"Please inspect `{notes}` and summarize it.")
 
     assert paths == [notes.resolve()]
+
+
+def test_find_http_urls_resolves_urls_from_question() -> None:
+    urls = find_http_urls("Inspect https://example.com/report and summarize it.")
+
+    assert urls == ["https://example.com/report"]
 
 
 def test_tool_manager_runs_local_file_and_csv_tools(tmp_path: Path) -> None:
@@ -38,3 +46,22 @@ def test_tool_manager_runs_local_file_and_csv_tools(tmp_path: Path) -> None:
     assert context["local_files"][0]["name"] == "inventory.csv"
     assert context["csv_summaries"][0]["columns"] == ["item", "count", "price"]
     assert context["csv_summaries"][0]["numeric_columns"][0]["name"] == "count"
+
+
+def test_tool_manager_runs_http_fetch_tool(monkeypatch) -> None:
+    url = install_http_fetch_stub(monkeypatch, body="server metrics are stable")
+    manager = ToolManager(
+        tools=[
+            HttpFetchTool(),
+        ]
+    )
+
+    context, invocations = manager.run_for_task(
+        task_type="analysis",
+        question=f"Analyze {url} and tell me what stands out.",
+    )
+
+    assert len(invocations) == 1
+    assert invocations[0].tool_name == "http_fetch"
+    assert context["web_pages"][0]["url"] == url
+    assert "server metrics are stable" in context["web_pages"][0]["preview"]
