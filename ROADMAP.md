@@ -18,14 +18,18 @@ The repository should be treated as a maintained local-first orchestration basel
 
 - Python 3.11+ implementation with `pydantic` schemas and `pytest` coverage
 - one `Supervisor` coordinating bounded workflow execution
-- one `TaskPlanner` choosing between two workflow templates:
+- one `TaskPlanner` choosing between five workflow templates:
   - `research_then_write`
   - `analysis_then_write`
+  - `research_then_analysis_then_write`
+  - `comparison_then_write`
+  - `research_then_comparison_then_write`
 - one `TaskRouter` that converts workflow steps plus intermediate context into worker inputs
 - one `TaskManager` for task envelope creation and traceable task IDs
 - focused worker roles:
   - `ResearchWorker`
   - `AnalysisWorker`
+  - `ComparisonWorker`
   - `WriterWorker`
   - optional `ReviewWorker`
 - a shared `ModelRunner` contract with:
@@ -34,8 +38,11 @@ The repository should be treated as a maintained local-first orchestration basel
 - a bounded `ToolManager` with current tool adapters:
   - `local_file_context`
   - `csv_analysis`
+  - `json_analysis`
+  - `data_computation`
   - `http_fetch`
 - explicit context attachment through `--context-file` and `--context-url`
+- opt-in inline context discovery through `--allow-inline-context-files` and `--allow-inline-context-urls`
 - output modes for `pretty`, `json`, and `markdown`
 - local JSON audit persistence plus read-only run inspection CLI
 - local JSON acceptance persistence plus read-only acceptance query and comparison CLI
@@ -43,7 +50,8 @@ The repository should be treated as a maintained local-first orchestration basel
 - request-level structured result caching with optional TTL expiry
 - local cache inspection and maintenance CLI
 - normalized CLI exit codes for automation
-- a minimal Streamlit console for plan preview, execution, trace inspection, and recent-run visibility
+- a guided Streamlit console for plan preview, route warnings, result inspection, recent-run visibility, acceptance inspection, cache inspection, and export
+- beta-facing onboarding docs and a structured beta feedback template
 
 ### Current Constraints
 
@@ -67,7 +75,7 @@ Those are not omissions by accident. They are scope choices that preserve local 
 2. `TaskPlanner` selects a bounded workflow template.
 3. `TaskRouter` builds each step input from the question and accumulated context.
 4. `Supervisor` executes the worker chain in order.
-5. `AnalysisWorker` may invoke registered tools through `ToolManager`.
+5. `AnalysisWorker` or `ComparisonWorker` may invoke registered tools through `ToolManager`.
 6. `WriterWorker` produces the final structured answer.
 7. `ReviewWorker` may validate the answer when enabled.
 8. `Supervisor` returns the final result, traces, tool invocations, and metadata.
@@ -80,10 +88,12 @@ Those are not omissions by accident. They are scope choices that preserve local 
 - `ToolInvocation`
 - `ResearchTaskInput`
 - `AnalysisTaskInput`
+- `ComparisonTaskInput`
 - `WriterTaskInput`
 - `ReviewTaskInput`
 - `ResearchResult`
 - `AnalysisResult`
+- `ComparisonResult`
 - `FinalAnswer`
 - `ReviewResult`
 - `TaskTrace`
@@ -103,6 +113,11 @@ Those are not omissions by accident. They are scope choices that preserve local 
 - `CachedModelRunner`
 - `ToolManager`
 - `Tool` protocol
+- `ResearchWorker`
+- `AnalysisWorker`
+- `ComparisonWorker`
+- `WriterWorker`
+- `ReviewWorker`
 - `AuditLogger` and `AuditStore`
 - `AcceptanceLogger` and `AcceptanceStore`
 - `RetryPolicy`
@@ -115,13 +130,14 @@ The current V1 baseline should continue to satisfy all of the following:
 
 - `python main.py "How should I bootstrap a supervisor-worker system?" --runner fake --output json` succeeds.
 - the planner selects bounded workflow templates instead of falling back to one hard-coded path.
-- the analysis path can incorporate explicit local files or URLs through the registered tool layer.
+- the analysis and comparison paths can incorporate explicit local files or URLs through the registered tool layer.
 - `Supervisor` coordinates workflow execution and does not handcraft worker answers.
 - worker inputs and outputs stay schema-validated.
 - fake and Ollama runners remain interchangeable behind the same orchestration contract.
 - audit records can be written and inspected without requiring a separate service.
 - acceptance runs can be persisted and compared through local report artifacts.
 - cache status and retry metadata remain visible in traces and persisted artifacts.
+- the guided Streamlit inspection surfaces remain aligned with the underlying workflow result and persisted artifact formats.
 - automated tests keep covering workflow selection, tool usage, CLI output, persistence, and query flows.
 
 ## 5. Next Milestone
@@ -131,7 +147,7 @@ The next milestone should stay narrow. It should improve the usefulness and stab
 ### 5.1 More Bounded Workflow Templates
 
 Goal:
-- add a small number of clearly testable templates for common task classes that are not well served by the current two-path planner
+- add a small number of clearly testable templates for common task classes that are not well served by the current five-path planner
 
 Expected changes:
 - extend planner classification rules in a deterministic, inspectable way
@@ -347,14 +363,21 @@ The stabilization backlog should remain subordinate to the three milestone theme
 
 ```text
 .
+├── .github/
+│   └── ISSUE_TEMPLATE/
+│       └── beta_feedback.md
 ├── app.py
 ├── main.py
 ├── docs/
 │   ├── architecture.md
+│   ├── beta_quickstart.md
+│   ├── known_issues.md
 │   ├── project_status.json
 │   ├── quickstart.md
 │   └── sample_data/
-│       └── quarterly_metrics.csv
+│       ├── quarterly_metrics.csv
+│       ├── quarterly_metrics.json
+│       └── quarterly_metrics_baseline.csv
 ├── models/
 │   ├── cached_runner.py
 │   ├── fake_runner.py
@@ -367,6 +390,7 @@ The stabilization backlog should remain subordinate to the three milestone theme
 │   ├── acceptance_runs.py
 │   ├── bootstrap.py
 │   ├── cache.py
+│   ├── inspection.py
 │   ├── planner.py
 │   ├── project_status.py
 │   ├── router.py
@@ -382,6 +406,7 @@ The stabilization backlog should remain subordinate to the three milestone theme
 │   ├── tool_schema.py
 │   └── worker_schema.py
 ├── tests/
+│   ├── __init__.py
 │   ├── test_acceptance.py
 │   ├── test_acceptance_query.py
 │   ├── test_audit_logging.py
@@ -389,7 +414,9 @@ The stabilization backlog should remain subordinate to the three milestone theme
 │   ├── test_cache_query.py
 │   ├── test_cli.py
 │   ├── test_exit_codes.py
+│   ├── test_inspection.py
 │   ├── test_ollama_runner.py
+│   ├── test_project_status.py
 │   ├── test_run_query.py
 │   ├── test_review_workflow.py
 │   ├── test_supervisor.py
@@ -400,14 +427,17 @@ The stabilization backlog should remain subordinate to the three milestone theme
 │   ├── audit.py
 │   ├── cache.py
 │   ├── csv_analysis_tool.py
+│   ├── data_computation_tool.py
 │   ├── errors.py
 │   ├── http_fetch_tool.py
+│   ├── json_analysis_tool.py
 │   ├── local_file_tool.py
 │   ├── registry.py
 │   └── retry.py
 └── workers/
     ├── analysis_worker.py
     ├── base.py
+    ├── comparison_worker.py
     ├── research_worker.py
     ├── review_worker.py
     └── writer_worker.py

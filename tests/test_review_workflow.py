@@ -9,3 +9,37 @@ def test_supervisor_can_run_optional_review_stage() -> None:
     assert result.review is not None
     assert result.review.consistent is True
     assert [trace.worker_name for trace in result.traces] == ["research", "writer", "review"]
+
+
+def test_supervisor_can_review_hybrid_workflow(tmp_path) -> None:
+    csv_path = tmp_path / "sales.csv"
+    csv_path.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake", enable_review=True)
+
+    result = supervisor.run_with_context(
+        "Analyze this dataset and recommend what we should prioritize next.",
+        context_files=[str(csv_path)],
+    )
+
+    assert result.review is not None
+    assert result.review.consistent is True
+    assert [trace.worker_name for trace in result.traces] == ["research", "analysis", "writer", "review"]
+
+
+def test_supervisor_can_review_hybrid_comparison_workflow(tmp_path) -> None:
+    current = tmp_path / "current.csv"
+    baseline = tmp_path / "baseline.csv"
+    current.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+    baseline.write_text("quarter,revenue\nQ1,8\nQ2,12\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake", enable_review=True)
+
+    result = supervisor.run_with_context(
+        "Compare these datasets and recommend which one we should prioritize next.",
+        context_files=[str(current), str(baseline)],
+    )
+
+    assert result.review is not None
+    assert result.review.consistent is True
+    assert [trace.worker_name for trace in result.traces] == ["research", "comparison", "writer", "review"]

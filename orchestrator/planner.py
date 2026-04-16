@@ -1,19 +1,30 @@
 from __future__ import annotations
 
+import re
+
 from schemas.task_schema import TaskType, WorkflowPlan, WorkflowStep
-from tools.registry import (
-    find_http_urls,
-    find_local_file_paths,
-    normalize_http_urls,
-    normalize_local_file_paths,
+from tools.registry import find_http_urls, find_local_file_paths
+
+_HEURISTIC_URL_PATTERN = re.compile(r"https?://[^\s`]+")
+_HEURISTIC_BACKTICK_PATTERN = re.compile(r"`[^`]+`")
+_HEURISTIC_PATH_PATTERN = re.compile(
+    r"(?:\./|\.\./|/)[^\s,;:]+|[A-Za-z0-9_.\-/]+\.(?:csv|txt|md|json|py|yaml|yml)"
 )
 
 
 class TaskPlanner:
     """Builds a bounded workflow plan from the user's request."""
 
-    def __init__(self, *, enable_review: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        enable_review: bool = False,
+        allow_question_file_paths: bool = False,
+        allow_question_urls: bool = False,
+    ) -> None:
         self.enable_review = enable_review
+        self.allow_question_file_paths = allow_question_file_paths
+        self.allow_question_urls = allow_question_urls
 
     def build_plan(
         self,
@@ -23,14 +34,123 @@ class TaskPlanner:
         context_urls: list[str] | None = None,
     ) -> WorkflowPlan:
         lowered = question.lower()
-        has_local_files = bool(find_local_file_paths(question) or normalize_local_file_paths(context_files))
-        has_context_urls = bool(find_http_urls(question) or normalize_http_urls(context_urls))
+        heuristic_text = _HEURISTIC_PATH_PATTERN.sub(
+            " ",
+            _HEURISTIC_URL_PATTERN.sub(" ", _HEURISTIC_BACKTICK_PATTERN.sub(" ", lowered)),
+        )
+        discovered_local_files = (
+            find_local_file_paths(question) if self.allow_question_file_paths else []
+        )
+        discovered_context_urls = find_http_urls(question) if self.allow_question_urls else []
+        has_local_files = bool(discovered_local_files or context_files)
+        has_context_urls = bool(discovered_context_urls or context_urls)
+        has_explicit_context = has_local_files or has_context_urls
+        context_artifact_count = (
+            len(context_files or [])
+            + len(context_urls or [])
+            + len(discovered_local_files)
+            + len(discovered_context_urls)
+        )
         is_analysis = any(
             keyword in lowered
             for keyword in ("analyze", "analyse", "analysis", "dataset", "csv", "data file")
-        ) or has_local_files or has_context_urls
+        ) or has_explicit_context
+        compare_intent = any(
+            keyword in heuristic_text
+            for keyword in (
+                "compare",
+                "comparison",
+                "versus",
+                " vs ",
+                "difference",
+                "different",
+                "changed more",
+                "higher than",
+                "lower than",
+            )
+        )
+        requires_research_support = has_explicit_context and any(
+            keyword in heuristic_text
+            for keyword in (
+                "recommend",
+                "should",
+                "risk",
+                "tradeoff",
+                "strategy",
+                "strategic",
+                "plan",
+                "decision",
+                "priorit",
+                "next step",
+            )
+        )
+        requires_context_comparison = compare_intent and context_artifact_count >= 2
 
-        if is_analysis:
+        if requires_context_comparison and requires_research_support:
+            steps = [
+                WorkflowStep(
+                    task_type=TaskType.RESEARCH,
+                    worker_name="research",
+                    output_schema="ResearchResult",
+                ),
+                WorkflowStep(
+                    task_type=TaskType.COMPARISON,
+                    worker_name="comparison",
+                    output_schema="ComparisonResult",
+                ),
+                WorkflowStep(
+                    task_type=TaskType.WRITING,
+                    worker_name="writer",
+                    output_schema="FinalAnswer",
+                ),
+            ]
+            rationale = (
+                "The request combines multiple explicit contexts, comparison intent, and advisory intent, "
+                "so the workflow starts with ResearchWorker, then runs ComparisonWorker before synthesis."
+            )
+            workflow_name = "research_then_comparison_then_write"
+        elif requires_context_comparison:
+            steps = [
+                WorkflowStep(
+                    task_type=TaskType.COMPARISON,
+                    worker_name="comparison",
+                    output_schema="ComparisonResult",
+                ),
+                WorkflowStep(
+                    task_type=TaskType.WRITING,
+                    worker_name="writer",
+                    output_schema="FinalAnswer",
+                ),
+            ]
+            rationale = (
+                "The request compares multiple explicit contexts, so the workflow starts with "
+                "ComparisonWorker before synthesis."
+            )
+            workflow_name = "comparison_then_write"
+        elif is_analysis and requires_research_support:
+            steps = [
+                WorkflowStep(
+                    task_type=TaskType.RESEARCH,
+                    worker_name="research",
+                    output_schema="ResearchResult",
+                ),
+                WorkflowStep(
+                    task_type=TaskType.ANALYSIS,
+                    worker_name="analysis",
+                    output_schema="AnalysisResult",
+                ),
+                WorkflowStep(
+                    task_type=TaskType.WRITING,
+                    worker_name="writer",
+                    output_schema="FinalAnswer",
+                ),
+            ]
+            rationale = (
+                "The request combines explicit context with advisory intent, so the workflow starts "
+                "with ResearchWorker, then runs AnalysisWorker against the attached context before synthesis."
+            )
+            workflow_name = "research_then_analysis_then_write"
+        elif is_analysis:
             steps = [
                 WorkflowStep(
                     task_type=TaskType.ANALYSIS,
@@ -92,10 +212,30 @@ class TaskPlanner:
             steps=steps,
             metadata={
                 "review_enabled": self.enable_review,
-                "question_type": "analysis" if is_analysis else "research",
+                "question_type": (
+                    (
+                        "hybrid_comparison"
+                        if requires_context_comparison and requires_research_support
+                        else "comparison"
+                        if requires_context_comparison
+                        else "hybrid"
+                        if is_analysis and requires_research_support
+                        else "analysis"
+                        if is_analysis
+                        else "research"
+                    )
+                ),
+                "compare_intent": compare_intent,
+                "requires_context_comparison": requires_context_comparison,
+                "requires_research_support": requires_research_support,
+                "context_artifact_count": context_artifact_count,
                 "has_local_files": has_local_files,
-                "context_file_count": len(normalize_local_file_paths(context_files)),
+                "context_file_count": len(context_files or []),
+                "discovered_context_file_count": len(discovered_local_files),
+                "inline_context_file_discovery_enabled": self.allow_question_file_paths,
                 "has_context_urls": has_context_urls,
-                "context_url_count": len(normalize_http_urls(context_urls)),
+                "context_url_count": len(context_urls or []),
+                "discovered_context_url_count": len(discovered_context_urls),
+                "inline_context_url_discovery_enabled": self.allow_question_urls,
             },
         )

@@ -5,6 +5,7 @@ import json
 import pytest
 
 from main import build_supervisor
+from tools.errors import ToolExecutionError
 
 
 def test_successful_run_writes_audit_record(tmp_path) -> None:
@@ -17,7 +18,10 @@ def test_successful_run_writes_audit_record(tmp_path) -> None:
         cache_dir=str(tmp_path / "cache"),
     )
 
-    result = supervisor.run(f"Analyze `{csv_path}` and summarize the changes.")
+    result = supervisor.run_with_context(
+        "Analyze this dataset and summarize the changes.",
+        context_files=[str(csv_path)],
+    )
 
     records = list(tmp_path.glob("*.json"))
     assert len(records) == 1
@@ -31,10 +35,11 @@ def test_successful_run_writes_audit_record(tmp_path) -> None:
     assert payload["result"]["review"]["consistent"] is True
     assert payload["result"]["tool_invocations"][0]["tool_name"] == "local_file_context"
     assert payload["result"]["tool_invocations"][1]["tool_name"] == "csv_analysis"
+    assert payload["result"]["tool_invocations"][2]["tool_name"] == "data_computation"
     assert [trace["worker_name"] for trace in payload["traces"]] == ["analysis", "writer", "review"]
     assert all(trace["metadata"]["cache_hit"] is False for trace in payload["traces"])
     assert all(trace["metadata"]["cache_status"] == "miss" for trace in payload["traces"])
-    assert payload["traces"][0]["metadata"]["tool_invocation_count"] == 2
+    assert payload["traces"][0]["metadata"]["tool_invocation_count"] == 3
 
 
 def test_failed_run_writes_failure_audit_record(tmp_path) -> None:
@@ -60,3 +65,28 @@ def test_failed_run_writes_failure_audit_record(tmp_path) -> None:
     assert payload["error"] == "writer exploded"
     assert payload["result"] is None
     assert [trace["worker_name"] for trace in payload["traces"]] == ["research", "writer"]
+
+
+def test_tool_failure_writes_failure_audit_record(tmp_path) -> None:
+    supervisor = build_supervisor(
+        runner_name="fake",
+        audit_dir=str(tmp_path),
+    )
+
+    with pytest.raises(ToolExecutionError, match="http_fetch failed"):
+        supervisor.run_with_context(
+            "Summarize the most important findings from this webpage.",
+            context_urls=["http://127.0.0.1:1/context"],
+        )
+
+    records = list(tmp_path.glob("*.json"))
+    assert len(records) == 1
+
+    payload = json.loads(records[0].read_text(encoding="utf-8"))
+    assert payload["status"] == "failed"
+    assert "http_fetch failed" in payload["error"]
+    assert payload["result"] is None
+    assert [trace["worker_name"] for trace in payload["traces"]] == ["analysis"]
+    assert payload["traces"][0]["status"] == "failed"
+    assert payload["traces"][0]["metadata"]["tool_invocation_count"] == 1
+    assert payload["traces"][0]["metadata"]["tool_invocations"][0]["status"] == "failed"

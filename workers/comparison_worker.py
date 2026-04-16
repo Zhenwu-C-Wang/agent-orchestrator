@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from models.model_runner import ModelRequest, StructuredModelRunner
 from models.prompt_manager import PromptManager
-from schemas.result_schema import AnalysisResult
+from schemas.result_schema import ComparisonResult
 from schemas.task_schema import TaskEnvelope
-from schemas.worker_schema import AnalysisTaskInput
+from schemas.worker_schema import ComparisonTaskInput
 from tools.errors import ToolExecutionError
 from tools.registry import ToolManager
 from workers.base import BaseWorker
 
 
-class AnalysisWorker(BaseWorker[AnalysisTaskInput, AnalysisResult]):
-    name = "analysis"
-    input_model = AnalysisTaskInput
-    output_model = AnalysisResult
+class ComparisonWorker(BaseWorker[ComparisonTaskInput, ComparisonResult]):
+    name = "comparison"
+    input_model = ComparisonTaskInput
+    output_model = ComparisonResult
 
     def __init__(
         self,
@@ -24,10 +24,10 @@ class AnalysisWorker(BaseWorker[AnalysisTaskInput, AnalysisResult]):
         super().__init__(runner=runner, prompt_manager=prompt_manager)
         self.tool_manager = tool_manager
 
-    def build_request(self, payload: AnalysisTaskInput) -> ModelRequest:
-        return self.prompt_manager.build_analysis_request(payload.question)
+    def build_request(self, payload: ComparisonTaskInput) -> ModelRequest:
+        return self.prompt_manager.build_comparison_request(payload.question)
 
-    def run(self, task: TaskEnvelope) -> AnalysisResult:
+    def run(self, task: TaskEnvelope) -> ComparisonResult:
         validated_input = self.input_model.model_validate(task.input)
         self.set_last_tool_invocations([])
         tool_context: dict[str, object] = {}
@@ -45,7 +45,7 @@ class AnalysisWorker(BaseWorker[AnalysisTaskInput, AnalysisResult]):
                 self._last_run_metadata = self._merge_run_metadata(self._collect_runner_metadata())
                 raise
         self.set_last_tool_invocations(tool_invocations)
-        request = self.prompt_manager.build_analysis_request_with_tools(
+        request = self.prompt_manager.build_comparison_request_with_tools(
             validated_input.question,
             tool_context=tool_context,
             research=validated_input.research,

@@ -10,7 +10,9 @@ def test_load_project_status_from_default_file() -> None:
     assert status.current_phase == "Phase 1 (Practical V1)"
     assert status.current_milestone.startswith("M4:")
     assert status.next_milestone == "Broader bounded workflow templates"
-    assert "external users" in " ".join(status.next_items).lower()
+    next_text = " ".join(status.next_items).lower()
+    assert "external users" in next_text
+    assert "workflow" in next_text
 
 
 def test_load_project_status_returns_none_for_missing_file(tmp_path: Path) -> None:

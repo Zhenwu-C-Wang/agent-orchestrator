@@ -20,4 +20,5 @@ class WriterWorker(BaseWorker[WriterTaskInput, FinalAnswer]):
             question=payload.question,
             research=payload.research,
             analysis=payload.analysis,
+            comparison=payload.comparison,
         )

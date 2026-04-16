@@ -1,5 +1,9 @@
+import pytest
+
 from main import build_supervisor
-from tests.http_fixtures import install_http_fetch_stub
+from tools.errors import ToolExecutionError
+
+from .http_fixtures import install_http_fetch_stub
 
 
 def test_supervisor_runs_the_closed_loop_workflow() -> None:
@@ -27,23 +31,104 @@ def test_supervisor_routes_analysis_requests_to_analysis_worker() -> None:
     assert [trace.worker_name for trace in result.traces] == ["analysis", "writer"]
 
 
+def test_supervisor_routes_advisory_context_requests_to_hybrid_workflow(tmp_path) -> None:
+    csv_path = tmp_path / "sales.csv"
+    csv_path.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake")
+
+    result = supervisor.run_with_context(
+        "Analyze this dataset and recommend what we should prioritize next.",
+        context_files=[str(csv_path)],
+    )
+
+    assert result.research is not None
+    assert result.analysis is not None
+    assert result.workflow_plan.workflow_name == "research_then_analysis_then_write"
+    assert [trace.worker_name for trace in result.traces] == ["research", "analysis", "writer"]
+    assert "Incorporated prior research context" in result.analysis.summary
+
+
+def test_supervisor_routes_compare_requests_to_comparison_workflow(tmp_path) -> None:
+    current = tmp_path / "current.csv"
+    baseline = tmp_path / "baseline.csv"
+    current.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+    baseline.write_text("quarter,revenue\nQ1,8\nQ2,12\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake")
+
+    result = supervisor.run_with_context(
+        "Compare these datasets and summarize the most important differences.",
+        context_files=[str(current), str(baseline)],
+    )
+
+    assert result.research is None
+    assert result.comparison is not None
+    assert result.workflow_plan.workflow_name == "comparison_then_write"
+    assert [trace.worker_name for trace in result.traces] == ["comparison", "writer"]
+    assert "Computed bounded dataset comparisons" in result.comparison.summary
+
+
+def test_supervisor_routes_advisory_compare_requests_to_hybrid_comparison_workflow(tmp_path) -> None:
+    current = tmp_path / "current.csv"
+    baseline = tmp_path / "baseline.csv"
+    current.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+    baseline.write_text("quarter,revenue\nQ1,8\nQ2,12\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake")
+
+    result = supervisor.run_with_context(
+        "Compare these datasets and recommend which one we should prioritize next.",
+        context_files=[str(current), str(baseline)],
+    )
+
+    assert result.research is not None
+    assert result.comparison is not None
+    assert result.workflow_plan.workflow_name == "research_then_comparison_then_write"
+    assert [trace.worker_name for trace in result.traces] == ["research", "comparison", "writer"]
+    assert "Incorporated prior research context" in result.comparison.summary
+
+
 def test_supervisor_records_tool_invocations_for_local_csv_analysis(tmp_path) -> None:
     csv_path = tmp_path / "sales.csv"
     csv_path.write_text("month,revenue\nJan,10\nFeb,12\nMar,15\n", encoding="utf-8")
 
     supervisor = build_supervisor(runner_name="fake")
 
-    result = supervisor.run(f"Analyze `{csv_path}` and summarize the most important changes.")
+    result = supervisor.run_with_context(
+        "Analyze this dataset and summarize the most important changes.",
+        context_files=[str(csv_path)],
+    )
 
     assert result.analysis is not None
-    assert len(result.tool_invocations) == 2
+    assert len(result.tool_invocations) == 3
     assert [invocation.tool_name for invocation in result.tool_invocations] == [
         "local_file_context",
         "csv_analysis",
+        "data_computation",
     ]
     assert result.workflow_plan.metadata["has_local_files"] is True
-    assert result.traces[0].metadata["tool_invocation_count"] == 2
+    assert result.traces[0].metadata["tool_invocation_count"] == 3
     assert "sales.csv" in result.analysis.summary
+
+
+def test_supervisor_can_use_inline_context_files_when_enabled(tmp_path) -> None:
+    csv_path = tmp_path / "sales.csv"
+    csv_path.write_text("month,revenue\nJan,10\nFeb,12\nMar,15\n", encoding="utf-8")
+
+    supervisor = build_supervisor(
+        runner_name="fake",
+        allow_inline_context_files=True,
+    )
+
+    result = supervisor.run(f"Analyze `{csv_path}` and summarize the most important changes.")
+
+    assert result.analysis is not None
+    assert [invocation.tool_name for invocation in result.tool_invocations] == [
+        "local_file_context",
+        "csv_analysis",
+        "data_computation",
+    ]
 
 
 def test_supervisor_uses_explicit_context_files_without_question_path(tmp_path) -> None:
@@ -62,7 +147,35 @@ def test_supervisor_uses_explicit_context_files_without_question_path(tmp_path) 
     assert [invocation.tool_name for invocation in result.tool_invocations] == [
         "local_file_context",
         "csv_analysis",
+        "data_computation",
     ]
+
+
+def test_supervisor_records_tool_invocations_for_local_json_analysis(tmp_path) -> None:
+    json_path = tmp_path / "metrics.json"
+    json_path.write_text(
+        (
+            '[{"quarter":"2024-Q1","revenue":120,"active_users":400,"churn_rate":0.08},'
+            '{"quarter":"2024-Q2","revenue":135,"active_users":430,"churn_rate":0.07}]'
+        ),
+        encoding="utf-8",
+    )
+
+    supervisor = build_supervisor(runner_name="fake")
+
+    result = supervisor.run_with_context(
+        "Analyze this JSON snapshot and summarize the most important changes.",
+        context_files=[str(json_path)],
+    )
+
+    assert result.analysis is not None
+    assert [invocation.tool_name for invocation in result.tool_invocations] == [
+        "local_file_context",
+        "json_analysis",
+        "data_computation",
+    ]
+    assert result.traces[0].metadata["tool_invocation_count"] == 3
+    assert "metrics.json" in result.analysis.summary
 
 
 def test_supervisor_records_http_tool_invocations_for_context_urls(monkeypatch) -> None:
@@ -79,3 +192,13 @@ def test_supervisor_records_http_tool_invocations_for_context_urls(monkeypatch) 
     assert result.workflow_plan.metadata["context_url_count"] == 1
     assert [invocation.tool_name for invocation in result.tool_invocations] == ["http_fetch"]
     assert url in result.analysis.summary
+
+
+def test_supervisor_fails_when_context_url_fetch_fails() -> None:
+    supervisor = build_supervisor(runner_name="fake")
+
+    with pytest.raises(ToolExecutionError, match="http_fetch failed"):
+        supervisor.run_with_context(
+            "Summarize the most important findings from this webpage.",
+            context_urls=["http://127.0.0.1:1/context"],
+        )

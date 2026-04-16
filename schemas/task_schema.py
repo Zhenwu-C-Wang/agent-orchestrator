@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 class TaskType(str, Enum):
     RESEARCH = "research"
     ANALYSIS = "analysis"
+    COMPARISON = "comparison"
     WRITING = "writing"
     REVIEW = "review"
 

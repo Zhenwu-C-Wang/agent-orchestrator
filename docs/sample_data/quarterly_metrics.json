@@ -1,0 +1,26 @@
+[
+  {
+    "quarter": "2024-Q1",
+    "revenue": 120,
+    "active_users": 400,
+    "churn_rate": 0.08
+  },
+  {
+    "quarter": "2024-Q2",
+    "revenue": 135,
+    "active_users": 430,
+    "churn_rate": 0.07
+  },
+  {
+    "quarter": "2024-Q3",
+    "revenue": 150,
+    "active_users": 470,
+    "churn_rate": 0.06
+  },
+  {
+    "quarter": "2024-Q4",
+    "revenue": 165,
+    "active_users": 520,
+    "churn_rate": 0.05
+  }
+]

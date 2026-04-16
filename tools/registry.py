@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from typing import Any, Protocol
 
 from schemas.tool_schema import ToolInvocation
+from tools.errors import ConfigurationError, ToolExecutionError
 
 _BACKTICKED_PATH_PATTERN = re.compile(r"`([^`]+)`")
 _URL_PATTERN = re.compile(r"(?P<url>https?://[^\s`]+)")
@@ -59,6 +60,37 @@ def normalize_local_file_paths(
     return resolved
 
 
+def validate_explicit_local_file_paths(
+    paths: list[str | Path] | None,
+    *,
+    base_dir: str | Path | None = None,
+) -> list[Path]:
+    root = Path(base_dir) if base_dir is not None else Path.cwd()
+    resolved: list[Path] = []
+    seen: set[Path] = set()
+    invalid: list[str] = []
+    for raw in paths or []:
+        cleaned = str(raw).strip().strip("()[]{}<>\"'").rstrip(".,;:!?")
+        if not cleaned:
+            invalid.append(str(raw))
+            continue
+        candidate = Path(cleaned).expanduser()
+        if not candidate.is_absolute():
+            candidate = (root / candidate).resolve()
+        else:
+            candidate = candidate.resolve()
+        if not candidate.exists() or not candidate.is_file():
+            invalid.append(cleaned)
+            continue
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        resolved.append(candidate)
+    if invalid:
+        raise ConfigurationError(f"Invalid context file(s): {', '.join(invalid)}")
+    return resolved
+
+
 def normalize_http_urls(urls: list[str] | None) -> list[str]:
     normalized: list[str] = []
     seen: set[str] = set()
@@ -73,6 +105,28 @@ def normalize_http_urls(urls: list[str] | None) -> list[str]:
             continue
         seen.add(cleaned)
         normalized.append(cleaned)
+    return normalized
+
+
+def validate_explicit_http_urls(urls: list[str] | None) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    invalid: list[str] = []
+    for raw in urls or []:
+        cleaned = str(raw).strip().strip("()[]{}<>\"'").rstrip(".,;:!?")
+        if not cleaned:
+            invalid.append(str(raw))
+            continue
+        parsed = urlparse(cleaned)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            invalid.append(cleaned)
+            continue
+        if cleaned in seen:
+            continue
+        seen.add(cleaned)
+        normalized.append(cleaned)
+    if invalid:
+        raise ConfigurationError(f"Invalid context URL(s): {', '.join(invalid)}")
     return normalized
 
 
@@ -96,9 +150,13 @@ class ToolManager:
         tools: list[Tool] | None = None,
         *,
         base_dir: str | Path | None = None,
+        allow_question_file_paths: bool = False,
+        allow_question_urls: bool = False,
     ) -> None:
         self.tools = list(tools or [])
         self.base_dir = Path(base_dir) if base_dir is not None else Path.cwd()
+        self.allow_question_file_paths = allow_question_file_paths
+        self.allow_question_urls = allow_question_urls
 
     def run_for_task(
         self,
@@ -140,17 +198,20 @@ class ToolManager:
                 )
             except Exception as exc:
                 duration_ms = int((perf_counter() - started_at) * 1000)
-                invocations.append(
-                    ToolInvocation(
-                        tool_name=tool.name,
-                        purpose=tool.purpose,
-                        status="failed",
-                        input_summary=question,
-                        duration_ms=duration_ms,
-                        metadata={},
-                        error=str(exc),
-                    )
+                failed_invocation = ToolInvocation(
+                    tool_name=tool.name,
+                    purpose=tool.purpose,
+                    status="failed",
+                    input_summary=question,
+                    duration_ms=duration_ms,
+                    metadata={},
+                    error=str(exc),
                 )
+                invocations.append(failed_invocation)
+                raise ToolExecutionError(
+                    f"{tool.name} failed: {exc}",
+                    invocations=invocations,
+                ) from exc
 
         return combined_context, invocations
 
@@ -160,8 +221,12 @@ class ToolManager:
         question: str,
         explicit_paths: list[str | Path] | None = None,
     ) -> list[Path]:
-        discovered = find_local_file_paths(question, base_dir=self.base_dir)
-        explicit = normalize_local_file_paths(explicit_paths, base_dir=self.base_dir)
+        discovered = (
+            find_local_file_paths(question, base_dir=self.base_dir)
+            if self.allow_question_file_paths
+            else []
+        )
+        explicit = validate_explicit_local_file_paths(explicit_paths, base_dir=self.base_dir)
         ordered: list[Path] = []
         seen: set[Path] = set()
         for path in [*explicit, *discovered]:
@@ -177,8 +242,8 @@ class ToolManager:
         question: str,
         explicit_urls: list[str] | None = None,
     ) -> list[str]:
-        discovered = find_http_urls(question)
-        explicit = normalize_http_urls(explicit_urls)
+        discovered = find_http_urls(question) if self.allow_question_urls else []
+        explicit = validate_explicit_http_urls(explicit_urls)
         ordered: list[str] = []
         seen: set[str] = set()
         for url in [*explicit, *discovered]:

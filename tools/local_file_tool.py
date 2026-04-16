@@ -8,14 +8,14 @@ from tools.registry import ToolExecutionResult
 
 class LocalFileContextTool:
     name = "local_file_context"
-    purpose = "Load local file previews to ground file-backed analysis requests."
+    purpose = "Load local file previews to ground file-backed analysis and comparison requests."
 
     def __init__(self, *, max_files: int = 2, max_chars: int = 4000) -> None:
         self.max_files = max_files
         self.max_chars = max_chars
 
     def supports(self, *, task_type: str, question: str, context: dict[str, Any]) -> bool:
-        return task_type == "analysis" and bool(context.get("candidate_paths"))
+        return task_type in {"analysis", "comparison"} and bool(context.get("candidate_paths"))
 
     def run(self, *, task_type: str, question: str, context: dict[str, Any]) -> ToolExecutionResult:
         candidate_paths: list[Path] = context.get("candidate_paths", [])
