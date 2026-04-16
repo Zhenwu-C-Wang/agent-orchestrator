@@ -188,6 +188,22 @@ Guardrails:
 - stay file-based and local-first for now
 - do not add database or distributed tracing infrastructure in this milestone
 
+### 5.4 Desktop Packaging Foundation
+
+Goal:
+- prepare the repo for a future installer-based beta aimed at non-technical users who should not need to open a terminal
+
+Expected changes:
+- provide a packaging-friendly Python UI launcher that can serve as the stable target for native app bundlers
+- separate the current repo-based technical beta from the future installer-based beta in docs and support statements
+- identify one narrow first platform for installer packaging instead of promising every operating system at once
+- move default writable runtime artifacts toward user-friendly locations once the packaging story solidifies
+
+Guardrails:
+- do not claim native installer support before an actual packaged build exists
+- do not let packaging work destabilize the current repo-based beta path
+- do not expand into hosted deployment or multi-user infrastructure as part of installer prep
+
 ## 6. Trial Readiness / Beta Readiness
 
 This section defines the gate for inviting external users to try the project. The goal is not to make the system universally deployable yet. The goal is to make one trial path clear, repeatable, and supportable.
@@ -353,6 +369,38 @@ Explicitly deferred until later:
 - Docker as the only supported path
 - multi-user or remotely hosted orchestration services
 
+### 6.9 Installer-Based Beta Expansion
+
+If the target tester changes from a technical evaluator to a true non-technical user, the current beta gate is no longer sufficient. A separate installer-based beta milestone is required.
+
+Required product shift:
+
+- the tester should receive an installer or app bundle instead of a repository setup guide
+- the tester should be able to launch the product without opening a terminal
+- the first-run path should start in a beginner-safe guided UI with built-in sample tasks
+- runtime artifacts such as logs or cached data should live in ordinary user-writable app locations
+
+Required deliverables before that installer beta:
+
+- one stable desktop-oriented launcher entrypoint inside the Python project
+- one chosen first operating system for packaged distribution
+- one bundling path such as PyInstaller, Briefcase, or an equivalent native-packaging workflow
+- one documented first-launch behavior covering browser opening or embedded webview behavior
+- one support statement for where logs, runs, and failure details are stored on the tester machine
+
+Exit criteria for installer beta:
+
+- a tester can install and launch the app without cloning the repo
+- a tester can reach the guided starter-task screen without maintainer help
+- the packaged build includes all UI/runtime dependencies needed for the supported first-run path
+- the app fails with visible, plain-language guidance when the local model path is unavailable
+
+Initial scope recommendation:
+
+- pick one operating system first, not all of them
+- keep the fake-runner path as the packaged first-run success path
+- treat Ollama support as a later follow-up even inside the installer beta
+
 ## 7. Stabilization Backlog
 
 The stabilization backlog should remain subordinate to the three milestone themes above.
@@ -361,6 +409,7 @@ The stabilization backlog should remain subordinate to the three milestone theme
 - expand regression tests when workflow routing or persistence surfaces change
 - preserve schema compatibility for persisted artifacts unless there is a clear migration story
 - keep fake-runner coverage strong so local regression checks stay fast and deterministic
+- keep the repo-based beta path and the future installer-based path clearly distinguished in docs and support promises
 
 ## 8. Current File Layout
 
@@ -370,6 +419,7 @@ The stabilization backlog should remain subordinate to the three milestone theme
 │   └── ISSUE_TEMPLATE/
 │       └── beta_feedback.md
 ├── app.py
+├── desktop_launcher.py
 ├── main.py
 ├── scripts/
 │   └── start_beta.sh

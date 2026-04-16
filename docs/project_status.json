@@ -1,8 +1,8 @@
 {
   "current_phase": "Phase 1 (Practical V1)",
-  "current_milestone": "M4: Trial Readiness / Beta Readiness",
-  "next_milestone": "Broader bounded workflow templates",
-  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, a guided Streamlit inspection UI, and beta-facing onboarding docs including a support matrix and task pack. The current push is to make first-run use more intuitive for less technical testers while continuing to broaden bounded routing without dropping inspectability.",
+  "current_milestone": "M5: Desktop Packaging Readiness",
+  "next_milestone": "Installer-based beta on one operating system",
+  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, a guided Streamlit inspection UI, and beta-facing onboarding docs including a support matrix and task pack. The current push is to bridge the gap between the repo-based technical beta and a future installer-based beta by keeping the guided UI simple and adding a packaging-friendly desktop launcher target.",
   "completed_items": [
     "Closed-loop supervisor orchestration with research, writing, and optional review stages",
     "Bounded workflow planning that routes between research, analysis, comparison, and hybrid advisory/context requests",
@@ -12,11 +12,12 @@
     "Guided Streamlit inspection for task input, plan preview, route warnings, intermediate results, recent runs, acceptance reports, cache health, per-item drill-downs, and result export",
     "Trial-readiness roadmap section that defines beta audience, entry surfaces, exit criteria, and feedback expectations",
     "Beta-facing support matrix, task pack, quickstart, and feedback collection entrypoints",
-    "Guided-mode starter tasks that preload beginner-friendly sample workflows in the Streamlit UI"
+    "Guided-mode starter tasks that preload beginner-friendly sample workflows in the Streamlit UI",
+    "Packaging-friendly desktop launcher entrypoint for future native app bundling"
   ],
   "next_items": [
-    "Manually validate the beta quickstart with first-wave external testers",
-    "Collect structured trial feedback from external users",
-    "Continue broadening bounded workflow planning and guarded analysis/comparison tools"
+    "Choose one first operating system for installer-based beta packaging",
+    "Validate the packaging-friendly UI launcher as the stable target for future native bundling",
+    "Continue broadening bounded workflow planning and guarded analysis/comparison tools without destabilizing the guided UI"
   ]
 }

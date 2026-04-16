@@ -20,10 +20,16 @@ ui = [
   "streamlit>=1.37,<2.0",
 ]
 
+[project.scripts]
+agent-orchestrator = "main:main"
+
+[project.gui-scripts]
+agent-orchestrator-ui = "desktop_launcher:main"
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.setuptools]
 packages = ["models", "orchestrator", "schemas", "tools", "workers"]
-py-modules = ["app", "main"]
+py-modules = ["app", "desktop_launcher", "main"]

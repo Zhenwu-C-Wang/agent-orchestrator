@@ -1,6 +1,7 @@
 # Beta Support Matrix
 
 This matrix defines the current support promise for the first external beta wave. It is intentionally narrower than the full feature set in the repository.
+It describes the current repo-based beta, not a native desktop-installer release for non-technical end users.
 
 ## Summary
 
@@ -9,6 +10,7 @@ This matrix defines the current support promise for the first external beta wave
 | Audience | Technical users running the repo locally |
 | Simplest launcher | `bash scripts/start_beta.sh` |
 | Primary entrypoint | `streamlit run app.py` |
+| Packaging-friendly UI entrypoint | `agent-orchestrator-ui` |
 | Secondary entrypoint | `python main.py "..."` |
 | Default UI mode | Guided mode with built-in starter tasks |
 | Supported runner for first success path | `fake` |
@@ -16,6 +18,7 @@ This matrix defines the current support promise for the first external beta wave
 | Supported operating systems | macOS, Linux |
 | Required Python version | 3.11+ |
 | Hosted deployment support | not in scope |
+| Native installer support | not shipped yet |
 
 ## Entry Surface Matrix
 
@@ -23,9 +26,10 @@ This matrix defines the current support promise for the first external beta wave
 | --- | --- | --- |
 | `scripts/start_beta.sh` | supported | Recommended shortest path for first-wave testers |
 | Streamlit UI | supported | Recommended first-run path for beta testers, with Guided mode and built-in starter tasks |
+| `agent-orchestrator-ui` | supported for local installed Python environments | Stable launcher target for future desktop packaging work |
 | CLI | supported | Good for validation, automation, and troubleshooting |
 | Hosted demo | not supported | Not part of the first beta wave |
-| Desktop installer | not supported | Deferred |
+| Desktop installer | not supported yet | Packaging groundwork is in progress, but no native installer is shipped today |
 
 ## Runner Matrix
 
@@ -98,6 +102,7 @@ For the first wave, the support promise should remain:
 
 - the fake-runner path is expected to work on supported systems
 - the Streamlit UI is the recommended entrypoint
+- the repo still assumes Python is installed locally; true installer-based distribution is a later milestone
 - the sample CSV task is the recommended first data task
 - the Ollama path is best-effort and secondary
 - unsupported environments should fail with clear guidance rather than silent ambiguity

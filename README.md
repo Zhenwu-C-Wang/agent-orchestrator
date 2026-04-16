@@ -4,6 +4,7 @@ A supervisor-driven multi-agent system where a central orchestrator decomposes t
 ## Status
 This repository now contains a practical local-first orchestration framework with bounded workflow planning across research, analysis, comparison, and hybrid advisory/context paths, tool-backed local and HTTP context analysis, bounded dataset computation, structured outputs, audit persistence, and a guided Streamlit console.
 The default runner is deterministic for tests and demos, and the same orchestration contract can be switched to Ollama for local model execution.
+The repo now also includes a packaging-friendly desktop launcher entrypoint for future installer builds, but true no-terminal installer distribution is still a separate milestone rather than a shipped surface today.
 
 ## Quickstart
 
@@ -27,6 +28,12 @@ If you want the simplest local beta launcher:
 bash scripts/start_beta.sh
 ```
 
+If you want the UI through the packaging-friendly Python entrypoint after installing `.[ui]`:
+
+```bash
+agent-orchestrator-ui
+```
+
 ## Streamlit UI
 
 Run a minimal local UI that can accept input, preview the workflow plan, execute the orchestrator, and display traces plus outputs:
@@ -36,10 +43,17 @@ pip install -e '.[ui]'
 streamlit run app.py
 ```
 
+Or launch the same UI through the packaging-oriented entrypoint:
+
+```bash
+agent-orchestrator-ui
+```
+
 The UI also reads `docs/project_status.json` for a lightweight milestone snapshot, surfaces guided workflow warnings before execution, and shows recent persisted runs when an audit directory is configured.
 Guided mode is enabled by default and now includes built-in starter tasks so first-time testers can run the main workflow families without hunting for sample files manually.
 Completed runs now render through guided inspection tabs for overview, intermediates, tools, traces, exports, and raw JSON, and the operations panel can also inspect persisted acceptance reports plus local cache health when those directories are configured.
 Those operational views now include drill-downs for individual acceptance cases and cache entries.
+The `agent-orchestrator-ui` entrypoint is mainly there to give future installer packaging a stable launch target. It does not yet mean the repo ships a native desktop installer.
 
 Enable the optional review stage:
 

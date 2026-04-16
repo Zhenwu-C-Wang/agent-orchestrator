@@ -117,5 +117,9 @@ def _main() -> None:
         print(format_pretty(result))
 
 
-if __name__ == "__main__":
+def main() -> None:
     run_cli(_main)
+
+
+if __name__ == "__main__":
+    main()

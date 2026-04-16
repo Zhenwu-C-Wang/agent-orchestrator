@@ -8,10 +8,11 @@ def test_load_project_status_from_default_file() -> None:
 
     assert status is not None
     assert status.current_phase == "Phase 1 (Practical V1)"
-    assert status.current_milestone.startswith("M4:")
-    assert status.next_milestone == "Broader bounded workflow templates"
+    assert status.current_milestone.startswith("M5:")
+    assert status.next_milestone == "Installer-based beta on one operating system"
     next_text = " ".join(status.next_items).lower()
-    assert "external users" in next_text
+    assert "operating system" in next_text
+    assert "packaging" in next_text
     assert "workflow" in next_text
 
 
