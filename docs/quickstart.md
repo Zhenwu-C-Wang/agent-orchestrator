@@ -1,6 +1,7 @@
 # Quickstart Scenarios
 
 This document shows the fastest ways to exercise the current framework end to end.
+If you are an external tester or you want the recommended first-run path, use [beta_quickstart.md](./beta_quickstart.md) first.
 
 ## 1. Research Workflow From The CLI
 

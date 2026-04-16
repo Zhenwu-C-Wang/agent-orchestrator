@@ -1,92 +1,95 @@
-# ROADMAP: Practical V1 for a Supervisor / Worker Orchestrator
+# ROADMAP: Stabilize The Current V1 And Extend It Carefully
 
-This repository now targets a **practical, immediately usable V1** rather than a demo-only MVP. The goal is to ship a runnable local-first orchestration framework that can already handle real tasks through role-based workers, a small integrated toolchain, and structured outputs, while still keeping the first release disciplined enough to build and verify.
+This repository is no longer best described as a greenfield MVP plan. The practical V1 baseline is largely in place. The roadmap now exists to document what is already true, what the next disciplined improvements should be, and which ideas remain intentionally deferred to the long term.
 
-## 1. V1 Product Decision
+## 1. Product Positioning
 
-### Problem We Are Solving
+The current project target is:
 
-Build a supervisor-driven orchestration framework that can take one user request, understand the task type, delegate work to focused workers, optionally use integrated tools, and return one final answer with structured intermediate output that is already useful in day-to-day work.
+- keep the orchestrator immediately usable for local work
+- preserve bounded planning, inspectability, and schema stability
+- make incremental improvements without reopening the architecture every week
 
-### In Scope
+The repository should be treated as a maintained local-first orchestration baseline, not as a blank-slate platform build.
 
-- Python implementation
-- A local-first supervisor / worker architecture that can be run from the CLI immediately after setup
-- A small but usable worker catalog: `ResearchWorker`, `WriterWorker`, `ReviewWorker`, and one analysis-oriented worker path
-- One `Supervisor`
-- One `TaskRouter` with limited dynamic routing between predefined workflow templates
-- One `TaskPlanner` or equivalent planning layer for task classification and workflow selection
-- One structured `ModelRunner` interface
-- One local-model adapter for Ollama
-- One deterministic fake runner for tests and demos
-- One pluggable `ToolManager`
-- A minimal integrated toolchain for practical use, including local file/context reading, external HTTP/API access through adapters, guarded Python/data analysis execution, and markdown/JSON result rendering
-- One optional JSON audit logger for run persistence
-- One read-only local run status query over audit artifacts
-- One optional acceptance report logger for validation persistence
-- One read-only acceptance report query over local JSON artifacts
-- One acceptance report comparison path for regression checks
-- One model-layer retry policy for Ollama calls and JSON parsing
-- One optional request-level structured result cache
-- One optional TTL-based cache expiry policy
-- One local cache inspection and maintenance CLI
-- One normalized CLI error taxonomy with stable exit codes
-- CLI entrypoint for local execution
+## 2. Current Baseline
 
-### Out Of Scope For This Version
+### What Exists Today
 
-- Fully open-ended agent swarms or unconstrained autonomous planning
-- Arbitrary plugin ecosystems or third-party marketplaces
-- Production-grade distributed scheduling
-- Complex human approval graphs
-- Rich real-time streaming UIs
-- Durable storage beyond local JSON audit artifacts
-- Broad enterprise compliance features
-- Full multi-provider model routing in the initial release
+- Python 3.11+ implementation with `pydantic` schemas and `pytest` coverage
+- one `Supervisor` coordinating bounded workflow execution
+- one `TaskPlanner` choosing between two workflow templates:
+  - `research_then_write`
+  - `analysis_then_write`
+- one `TaskRouter` that converts workflow steps plus intermediate context into worker inputs
+- one `TaskManager` for task envelope creation and traceable task IDs
+- focused worker roles:
+  - `ResearchWorker`
+  - `AnalysisWorker`
+  - `WriterWorker`
+  - optional `ReviewWorker`
+- a shared `ModelRunner` contract with:
+  - deterministic `FakeModelRunner`
+  - local `OllamaModelRunner`
+- a bounded `ToolManager` with current tool adapters:
+  - `local_file_context`
+  - `csv_analysis`
+  - `http_fetch`
+- explicit context attachment through `--context-file` and `--context-url`
+- output modes for `pretty`, `json`, and `markdown`
+- local JSON audit persistence plus read-only run inspection CLI
+- local JSON acceptance persistence plus read-only acceptance query and comparison CLI
+- model-layer retry and parse recovery for Ollama calls
+- request-level structured result caching with optional TTL expiry
+- local cache inspection and maintenance CLI
+- normalized CLI exit codes for automation
+- a minimal Streamlit console for plan preview, execution, trace inspection, and recent-run visibility
 
-The rule for this version is simple: if a feature does not make the framework more immediately useful or safer to operate in local real tasks, defer it to a later phase.
+### Current Constraints
 
-## 2. Locked Technical Choices
+The present baseline is intentionally bounded. It does not yet aim to provide:
 
-These choices are intentionally fixed so the framework can become usable quickly without reopening infrastructure decisions.
+- open-ended autonomous planning
+- parallel execution or DAG scheduling
+- workflow-level retry or recovery
+- broad external tool families beyond the current local-first set
+- database-backed persistence
+- multi-provider model routing
+- plugin marketplaces or third-party worker ecosystems
 
-| Topic | Decision |
-| --- | --- |
-| Language | Python 3.11+ |
-| Schema validation | `pydantic` |
-| Local model provider | Ollama via HTTP API |
-| Test runner | `pytest` |
-| CLI entrypoint | `python main.py "question"` |
-| Default demo runner | `fake` |
-| Local model runner | `ollama` |
+Those are not omissions by accident. They are scope choices that preserve local usability, inspectability, and testability.
 
-## 3. V1 Workflow Contract
+## 3. Current Runtime Contract
 
 ### Workflow
 
-1. User submits a request.
-2. `Supervisor` asks `TaskPlanner` and `TaskRouter` for the workflow plan.
-3. The system classifies the request into a bounded workflow template.
-4. One or more workers execute the selected workflow, optionally invoking registered tools.
-5. `WriterWorker` or an equivalent synthesis step assembles the final answer.
-6. `ReviewWorker` may validate the result when enabled.
-7. `Supervisor` returns the final answer plus task traces, tool usage, and execution metadata.
+1. A user submits one question plus optional explicit context files or URLs.
+2. `TaskPlanner` selects a bounded workflow template.
+3. `TaskRouter` builds each step input from the question and accumulated context.
+4. `Supervisor` executes the worker chain in order.
+5. `AnalysisWorker` may invoke registered tools through `ToolManager`.
+6. `WriterWorker` produces the final structured answer.
+7. `ReviewWorker` may validate the answer when enabled.
+8. `Supervisor` returns the final result, traces, tool invocations, and metadata.
 
-### Required Schemas
+### Core Schemas
 
 - `TaskEnvelope`
 - `WorkflowPlan`
+- `WorkflowStep`
 - `ToolInvocation`
 - `ResearchTaskInput`
 - `AnalysisTaskInput`
 - `WriterTaskInput`
+- `ReviewTaskInput`
 - `ResearchResult`
 - `AnalysisResult`
 - `FinalAnswer`
+- `ReviewResult`
 - `TaskTrace`
 - `WorkflowResult`
 
-### Required Runtime Components
+### Runtime Components
 
 - `Supervisor`
 - `TaskPlanner`
@@ -97,157 +100,261 @@ These choices are intentionally fixed so the framework can become usable quickly
 - `FakeModelRunner`
 - `OllamaClient`
 - `OllamaModelRunner`
+- `CachedModelRunner`
 - `ToolManager`
 - `Tool` protocol
-- `AuditLogger`
-- `AuditStore`
+- `AuditLogger` and `AuditStore`
+- `AcceptanceLogger` and `AcceptanceStore`
 - `RetryPolicy`
 - `StructuredResultCache`
 - `AgentOrchestratorError`
-- `ResearchWorker`
-- `AnalysisWorker`
-- `WriterWorker`
-- `ReviewWorker` behind a feature flag
 
-## 4. Definition Of Done
+## 4. Baseline Maintenance Criteria
 
-The V1 is done only when all of the following are true:
+The current V1 baseline should continue to satisfy all of the following:
 
-- The command `python main.py "How should I bootstrap a supervisor-worker system?" --runner fake --output json` succeeds.
-- The command `python main.py "Analyze this local dataset and summarize the findings" --runner ollama --output markdown` succeeds when the required tool path is available.
-- The output contains a structured workflow plan, intermediate worker blocks, a structured `final_answer` block, and `traces`.
-- `Supervisor` does not handcraft answers; it only coordinates the workflow.
-- Each worker validates input and output against explicit schemas.
-- The framework can choose among bounded workflow templates instead of relying on a single hard-coded path.
-- A local Ollama runner exists behind the same `ModelRunner` interface.
-- Tool usage is isolated behind a registry and explicit invocation records.
-- At least one integrated tool path is usable end-to-end for practical work beyond pure text transformation.
-- Audit logging can persist a run as one JSON artifact when requested.
-- Local runs can be listed and inspected through a read-only audit query CLI.
-- Acceptance runs can optionally persist one report artifact and query it later.
-- Acceptance history can be compared against a baseline run for regression checks.
-- The Ollama runner can retry model invocation or JSON parsing failures without replaying the whole workflow.
-- Exact repeated requests can reuse cached structured results when cache is enabled.
-- Cache TTL can expire older entries when configured.
-- Cache hit, miss, or expiry status is visible in task-level trace metadata and audit artifacts.
-- Local cache entries can be listed, pruned, or cleared through a dedicated CLI.
-- CLI failures are classified into stable exit codes for automation.
-- Automated tests cover routing, worker execution, tool invocation, and CLI JSON output.
+- `python main.py "How should I bootstrap a supervisor-worker system?" --runner fake --output json` succeeds.
+- the planner selects bounded workflow templates instead of falling back to one hard-coded path.
+- the analysis path can incorporate explicit local files or URLs through the registered tool layer.
+- `Supervisor` coordinates workflow execution and does not handcraft worker answers.
+- worker inputs and outputs stay schema-validated.
+- fake and Ollama runners remain interchangeable behind the same orchestration contract.
+- audit records can be written and inspected without requiring a separate service.
+- acceptance runs can be persisted and compared through local report artifacts.
+- cache status and retry metadata remain visible in traces and persisted artifacts.
+- automated tests keep covering workflow selection, tool usage, CLI output, persistence, and query flows.
 
-## 5. Executable Work Breakdown
+## 5. Next Milestone
 
-### M0: Project Bootstrap
+The next milestone should stay narrow. It should improve the usefulness and stability of the existing baseline without turning into a platform rewrite.
 
-Deliverables:
+### 5.1 More Bounded Workflow Templates
 
-- `pyproject.toml`
-- package directories and `__init__.py` files
-- CLI entrypoint
-- `README.md` install and run instructions
+Goal:
+- add a small number of clearly testable templates for common task classes that are not well served by the current two-path planner
 
-Acceptance:
+Expected changes:
+- extend planner classification rules in a deterministic, inspectable way
+- add router input construction for any new template-specific context
+- add worker logic only when the new template truly requires a different contract
+- add acceptance cases that prove the new template is selected for the right requests
 
-- A new contributor can create a virtualenv, install dependencies, and run tests using only the README.
+Guardrails:
+- do not introduce open-ended autonomous task graph generation
+- do not add templates whose routing logic cannot be explained or tested
 
-### M1: Core Orchestration
+### 5.2 Stronger Ollama Compatibility
 
-Deliverables:
+Goal:
+- make local-model execution more robust across a small, documented set of Ollama models
 
-- `Supervisor`
-- `TaskPlanner`
-- `TaskRouter`
-- `TaskManager`
-- `ResearchWorker`
-- `AnalysisWorker`
-- `WriterWorker`
-- `ReviewWorker`
-- schemas for task input, worker output, workflow plans, and traces
+Expected changes:
+- refine prompt constraints for structured JSON output
+- harden extraction and parse recovery around real model variance
+- document a supported or known-good local model matrix
+- keep retry logic isolated to the model layer
 
-Acceptance:
+Guardrails:
+- do not let model-specific branching leak into planner or supervisor behavior
+- do not treat retries as workflow replay
 
-- At least two bounded workflow templates run end-to-end with the fake runner.
-- `WorkflowResult` includes both intermediate and final structured outputs.
+### 5.3 Better Observability And Regression Comparison
 
-### M2: Local Model And Tooling
+Goal:
+- make persisted run history and acceptance history more useful during day-to-day iteration
 
-Deliverables:
+Expected changes:
+- enrich run and acceptance summaries with higher-signal metadata
+- improve acceptance comparison output so regressions are easier to spot
+- keep documentation aligned with the actual CLI inspection surfaces
 
-- `OllamaClient`
-- `OllamaModelRunner`
-- `ToolManager`
-- one local context/file tool
-- one guarded analysis or execution tool
-- prompt templates for planner and workers
-- optional JSON audit persistence
-- read-only audit query CLI
-- optional acceptance report persistence
-- read-only acceptance report query CLI
-- acceptance report comparison support
-- model-layer retry policy
-- request-level structured result cache
-- TTL-based cache expiry and local cache management CLI
-- normalized CLI exit codes
+Guardrails:
+- stay file-based and local-first for now
+- do not add database or distributed tracing infrastructure in this milestone
 
-Acceptance:
+## 6. Trial Readiness / Beta Readiness
 
-- The same workflow can be executed with `--runner ollama --model <model-name>`.
-- Local-model calls are isolated behind the `ModelRunner` contract.
-- Tool calls are isolated behind the `ToolManager` contract.
-- The framework can support at least one research-style request and one analysis-style request without code changes.
-- Audit artifacts can be written without changing worker logic.
-- Run inspection reads persisted artifacts instead of requiring a live process registry.
-- Acceptance history is preserved separately from per-question workflow audit records.
-- Acceptance regression checks compare report artifacts instead of replaying old runs.
-- Retry logic is isolated to model execution and parse recovery.
-- Cache reuse is isolated to exact request matches and does not affect workflow order.
-- Cache expiry remains local, opt-in, and request-level.
-- CLI automation can rely on stable exit codes instead of parsing free-form error text.
+This section defines the gate for inviting external users to try the project. The goal is not to make the system universally deployable yet. The goal is to make one trial path clear, repeatable, and supportable.
 
-### M3: Usability Baseline
+### 6.1 First Beta Audience
 
-Deliverables:
+The first beta should target:
 
-- workflow unit tests
-- tool integration tests
-- CLI integration test
-- JSON extraction/parser test for model output normalization
-- architecture note
-- quickstart usage scenarios
+- technical users who are comfortable cloning a repository and running a Python project locally
+- evaluators who can follow a short setup guide without live assistance
+- users who can provide actionable feedback about workflow quality, setup friction, and failure modes
 
-Acceptance:
+The first beta should not target:
 
-- `pytest` passes locally.
-- The repo contains one document that explains responsibility boundaries and one quickstart path for real usage.
+- non-technical users
+- users who expect a hosted SaaS experience
+- users who need production uptime, data guarantees, or multi-user collaboration
 
-## 6. Task List For Immediate Execution
+Default assumption for the first wave:
 
-These are the first engineering tasks to create as issues or work items.
+- macOS or Linux users
+- Python 3.11+
+- terminal access
+- optional Ollama installation for the local-model path
 
-1. Create the Python package and dependency manifest.
-2. Define the core schemas in `schemas/`, including workflow plans and tool invocation records.
-3. Implement the `ModelRunner` protocol and fake runner.
-4. Implement the Ollama client and runner.
-5. Implement the prompt manager and planner prompts.
-6. Implement `ResearchWorker`, `AnalysisWorker`, `WriterWorker`, and the optional `ReviewWorker`.
-7. Implement `TaskPlanner`, `TaskRouter`, `TaskManager`, and `Supervisor`.
-8. Implement `ToolManager` and at least two practical tool adapters.
-9. Add `main.py` and JSON/pretty/markdown output modes.
-10. Add optional JSON audit logging.
-11. Add read-only run status query over persisted audit artifacts.
-12. Add optional acceptance report persistence and read-only acceptance query.
-13. Add model-layer retries for Ollama execution and parse recovery.
-14. Add request-level structured result caching.
-15. Add TTL-based cache expiry and a local cache management CLI.
-16. Add normalized CLI failure classification and exit codes.
-17. Add tests for workflow routing, tool invocation, CLI, audit persistence, acceptance persistence, status query, retry behavior, caching, cache expiry, cache management, exit codes, and JSON extraction.
-18. Add architecture and quickstart documentation for real usage scenarios.
+### 6.2 Recommended Trial Surfaces
 
-## 7. File Layout For This Milestone
+The beta should expose one primary path and one secondary path:
+
+- primary trial surface: `streamlit run app.py`
+- secondary validation surface: `python main.py "..."`
+
+The primary beta flow should use:
+
+- fake runner for the fastest smoke test and deterministic onboarding
+- optional Ollama follow-up path for testers who want to evaluate real local-model behavior
+
+Guardrails:
+
+- do not ask first-wave testers to choose between many entrypoints
+- do not require Ollama for the very first success path
+- do not position the fake runner as model-quality validation; use it only for setup and workflow validation
+
+### 6.3 Beta Deliverables
+
+Before inviting external testers, the repo should provide:
+
+- one beta-facing quickstart path that gets a new tester to a successful run in 5-10 minutes
+- one recommended command or UI path for first use, with no branching decisions until after the first successful run
+- one short supported-environment matrix in `README.md` or a beta guide
+- one known-issues section covering the most likely setup and runtime failures
+- one standard feedback template asking for environment, runner, task, observed behavior, and reproduction steps
+- one small sample task pack that lets testers evaluate the system consistently
+
+Recommended documentation additions:
+
+- `docs/beta_quickstart.md` or an equivalent section in `README.md`
+- `docs/known_issues.md` or an equivalent concise troubleshooting section
+- a GitHub issue template or lightweight feedback form
+
+### 6.4 Supported Environment Matrix
+
+The first beta should publish a narrow support statement instead of implying broad compatibility.
+
+Required to document:
+
+- supported operating systems for the first wave
+- required Python version
+- whether the Streamlit UI is the recommended entrypoint
+- whether Ollama is optional or required for each evaluation path
+- one or more known-good Ollama model names
+- expected hardware baseline for the Ollama path, even if approximate
+
+Minimum support promise for the first beta:
+
+- fake runner path is expected to work on supported systems
+- Ollama path is best-effort outside the documented model matrix
+- unsupported environments should fail with clear guidance, not silent ambiguity
+
+### 6.5 Standard Trial Script
+
+Every external tester should be asked to try the same small script before free-form exploration.
+
+Required trial tasks:
+
+1. Run the Streamlit UI or CLI with the fake runner and complete one research-style request.
+2. Run one analysis-style request against `docs/sample_data/quarterly_metrics.csv`.
+3. Inspect traces or tool invocations to verify the workflow is understandable.
+4. If Ollama is installed, rerun one task with a documented supported model.
+5. Report one positive impression and one point of friction.
+
+Required success condition for each trial:
+
+- the tester reaches one successful end-to-end result without direct intervention from the maintainer
+- the tester can identify which workflow path ran
+- the tester can tell when tools were used
+- the tester knows what to do next after the first run
+
+### 6.6 Beta Exit Criteria
+
+The project is ready for external trial use only when all of the following are true:
+
+- a new tester can complete the recommended first-run path using only the published docs
+- the fake-runner smoke test succeeds consistently on supported systems
+- the sample CSV analysis workflow succeeds consistently on supported systems
+- the Streamlit UI and CLI both surface enough information to understand workflow selection and failures
+- README commands and beta docs have been manually re-verified against current CLI flags
+- the repo clearly states what is supported, what is experimental, and what is out of scope
+- a feedback collection channel exists before invitations go out
+
+Operational target for the first beta wave:
+
+- at least 3 external testers
+- at least 80 percent complete the first-run path without maintainer intervention
+- setup blockers and unclear docs are tracked as explicit issues
+
+### 6.7 Feedback Collection And Triage
+
+Feedback collection should be lightweight but structured.
+
+Each tester report should capture:
+
+- operating system
+- Python version
+- runner used: `fake` or `ollama`
+- model name if Ollama was used
+- whether they used Streamlit, CLI, or both
+- the task they attempted
+- whether the first-run path succeeded
+- the most confusing step
+- the most valuable part of the experience
+
+Triage buckets for incoming feedback:
+
+- setup friction
+- model compatibility
+- workflow quality
+- tool correctness
+- UI clarity
+- documentation gaps
+
+Expected response loop:
+
+- log every tester issue in one visible place
+- fix onboarding blockers before expanding the tester pool
+- update docs after each beta round, not just code
+
+### 6.8 Beta Packaging Decision
+
+For the first beta, the project should commit to one packaging story:
+
+- distribution model: repository plus local setup instructions
+- primary launcher: Streamlit UI
+- fallback launcher: CLI
+
+Explicitly deferred until later:
+
+- hosted demo deployments
+- installers or native desktop packaging
+- Docker as the only supported path
+- multi-user or remotely hosted orchestration services
+
+## 7. Stabilization Backlog
+
+The stabilization backlog should remain subordinate to the three milestone themes above.
+
+- keep `README.md`, `ROADMAP.md`, and `docs/quickstart.md` aligned with the actual CLI and runtime behavior
+- expand regression tests when workflow routing or persistence surfaces change
+- preserve schema compatibility for persisted artifacts unless there is a clear migration story
+- keep fake-runner coverage strong so local regression checks stay fast and deterministic
+
+## 8. Current File Layout
 
 ```text
 .
+├── app.py
+├── main.py
 ├── docs/
-│   └── architecture.md
+│   ├── architecture.md
+│   ├── project_status.json
+│   ├── quickstart.md
+│   └── sample_data/
+│       └── quarterly_metrics.csv
 ├── models/
 │   ├── cached_runner.py
 │   ├── fake_runner.py
@@ -256,12 +363,14 @@ These are the first engineering tasks to create as issues or work items.
 │   ├── ollama_runner.py
 │   └── prompt_manager.py
 ├── orchestrator/
-│   ├── cache.py
 │   ├── acceptance.py
 │   ├── acceptance_runs.py
+│   ├── bootstrap.py
+│   ├── cache.py
 │   ├── planner.py
-│   ├── runs.py
+│   ├── project_status.py
 │   ├── router.py
+│   ├── runs.py
 │   ├── supervisor.py
 │   └── task_manager.py
 ├── schemas/
@@ -272,16 +381,6 @@ These are the first engineering tasks to create as issues or work items.
 │   ├── task_schema.py
 │   ├── tool_schema.py
 │   └── worker_schema.py
-├── tools/
-│   ├── __init__.py
-│   ├── acceptance.py
-│   ├── audit.py
-│   ├── cache.py
-│   ├── errors.py
-│   ├── http_tool.py
-│   ├── python_tool.py
-│   ├── registry.py
-│   └── retry.py
 ├── tests/
 │   ├── test_acceptance.py
 │   ├── test_acceptance_query.py
@@ -296,255 +395,76 @@ These are the first engineering tasks to create as issues or work items.
 │   ├── test_supervisor.py
 │   ├── test_task_planner.py
 │   └── test_tool_manager.py
-├── workers/
-│   ├── analysis_worker.py
-│   ├── base.py
-│   ├── research_worker.py
-│   ├── review_worker.py
-│   └── writer_worker.py
-├── main.py
-├── pyproject.toml
-├── README.md
-└── ROADMAP.md
+├── tools/
+│   ├── acceptance.py
+│   ├── audit.py
+│   ├── cache.py
+│   ├── csv_analysis_tool.py
+│   ├── errors.py
+│   ├── http_fetch_tool.py
+│   ├── local_file_tool.py
+│   ├── registry.py
+│   └── retry.py
+└── workers/
+    ├── analysis_worker.py
+    ├── base.py
+    ├── research_worker.py
+    ├── review_worker.py
+    └── writer_worker.py
 ```
 
-## 8. Acceptance Dataset
+## 9. Long-Term Directions
 
-Use at least these six questions to validate the fake or local runner workflow:
+These are still valid ideas, but they should remain out of the near-term milestone unless the project explicitly decides to broaden scope.
 
-1. How should I bootstrap a supervisor-worker agent system?
-2. What are the tradeoffs of fake runners versus local models in an MVP?
-3. How should I define worker schemas before adding more workers?
-4. What risks appear when a supervisor directly writes the final answer?
-5. When should I add retry, cache, and audit layers to this system?
-6. Analyze a local CSV file and summarize the most important changes.
+### 9.1 Parallel And Multi-Agent Execution
 
-The pass condition is not “the wording looks nice.” The pass condition is:
+- asynchronous or DAG-based scheduling
+- fan-out and fan-in orchestration patterns
+- result aggregation and conflict resolution between branches
 
-- no runtime crash
-- valid schema output
-- correct workflow order for the selected workflow template
-- correct tool invocation records when a tool-backed task is requested
-- final answer references the research summary instead of inventing a separate path
+### 9.2 Human-In-The-Loop Workflows
 
-## 9. Next Milestone After This One
+- approval checkpoints before expensive or risky steps
+- progress streaming, pause, and cancel controls
+- mid-run feedback that can alter execution strategy
 
-Only after the practical V1 above is stable should the project add:
+### 9.3 Broader Tool Families
 
-- workflow-level retry policy
-- advanced cache invalidation and eviction policy
-- richer status/query APIs beyond audit-backed local inspection
-- broader dynamic planning
-- richer tool families such as databases, notebooks, and IDE automation
-- parallel branches
-- human-in-the-loop checkpoints
+- database access
+- notebook generation or execution
+- richer code and IDE automation
+- broader external API integrations
 
-## 10. Future Vision: Multi-functional AI Systems Framework
+### 9.4 Richer Result Presentation
 
-After the practical V1 is proven stable, the long-term vision extends this orchestration layer into a comprehensive **multi-functional intelligent systems framework** capable of:
+- HTML or dashboard output
+- notebook-friendly artifacts
+- richer report packaging beyond the current markdown path
 
-### 10.1 Dynamic Workflow Planning (P1)
+### 9.5 Multi-Provider And Enterprise Surfaces
 
-**Goal:** Adapt workflow to question type and context instead of using a fixed pipeline.
+- model routing across providers beyond Ollama
+- richer metrics and tracing
+- more advanced compliance or enterprise audit layers
 
-**Components:**
-- `DynamicTaskPlanner`: Analyzes user questions and generates adaptive workflow graphs
-- `AdaptiveTaskRouter`: Extends `TaskRouter` to support dynamic routing
-- `DecisionTree`: Maps question semantics to recommended worker chains
-- `WorkflowGraph`: DAG-based task scheduling (sequential, parallel, conditional branches)
+### 9.6 Extensibility
 
-**Example Use Cases:**
-- Technical questions → Research + Code Analysis + Testing
-- Data questions → Research + Data Analysis + Visualization
-- Multi-step tasks → Task decomposition + parallel execution + result synthesis
+- plugin-style worker or tool registration
+- third-party extension contracts
+- curated prompt or worker libraries
 
-### 10.2 Integrated Tool Chain (P1)
+## 10. Capability Snapshot
 
-**Goal:** Provide workers access to external tools and APIs dynamically.
+| Capability | Current Baseline | Next Milestone | Long Term |
+| --- | --- | --- | --- |
+| Bounded workflow routing | yes | expand templates carefully | keep bounded unless explicitly redesigned |
+| Tool integration | yes, local-first | broaden within local-first constraints | broader tool families |
+| Ollama support | yes | harden compatibility | multi-provider routing |
+| Audit and acceptance persistence | yes | improve summaries and comparison quality | richer observability |
+| Request cache and model retry | yes | maintain and document | more advanced invalidation only if needed |
+| Parallel execution | no | not in scope | yes |
+| Human-in-the-loop checkpoints | no | not in scope | yes |
+| Plugin or marketplace model | no | not in scope | possible |
 
-**Components:**
-- `ToolManager`: Registry and selector for available tools
-- `WebScraperTool`: Extract and parse web content
-- `DataAnalyzerTool`: Execute pandas/numpy analysis
-- `CodeExecutorTool`: Run Python code in isolated environments
-- `APICallerTool`: Invoke external services with authentication
-- `DatabaseConnectorTool`: Query structured data stores
-- `IDEIntegrationTool`: Automate VSCode/Jupyter operations
-Workflow:
-
-```python
-class ToolManager:
-    tools = {
-        'web_scraper': WebScraperTool(),
-        'data_analyzer': DataAnalyzerTool(),
-        'code_executor': CodeExecutorTool(),
-        'api_caller': APICallerTool(),
-        'database': DatabaseConnectorTool(),
-    }
-    
-    def select_tools(self, task_type: str) -> list[Tool]:
-        """Route task requirements to available tools"""
-        pass
-```
-
-**Benefits:**
-- Workers can fetch real-time data
-- Workers can execute custom analysis scripts
-- Workers can integrate with external services (search, compute, databases)
-
-### 10.3 Implicit NLP & Task Decomposition (P2)
-
-**Goal:** Automatically understand user intent and decompose into sub-tasks.
-
-**Components:**
-- `SemanticAnalyzer`: Extract intent, entities, and task types from natural language
-- `TaskDecomposer`: Break complex requests into atomic work items
-- `ContextExtractor`: Build execution context from conversation history
-- `LLMTaskPlanner`: Use an LLM to generate optimal task sequences
-
-**Example:**
-```
-User: "Analyze sales data from Q1 2024 and compare with Q1 2023, then generate a PowerPoint report"
-
-Decomposed Flow:
-1. DataFetchWorker → Query Q1 2024 sales, Q1 2023 sales
-2. DataAnalysisWorker → Compute YoY trends, changes, anomalies  
-3. VisualizationWorker → Create comparison charts
-4. ReportGeneratorWorker → Assemble PowerPoint with findings
-```
-
-### 10.4 Parallel & Multi-Agent Execution (P2)
-
-**Goal:** Enable workers to execute concurrently and collaborate.
-
-**Components:**
-- `AsyncSupervisor`: Parallel task execution with dependency tracking
-- `AgentCommunication`: Inter-worker message passing
-- `ResultAggregator`: Combine outputs from parallel branches
-- `ConflictResolver`: Reconcile divergent recommendations
-
-**Execution Model:**
-```python
-# Sequential
-Research → Writing → Review
-
-# Fan-out / Fan-in (parallel research, then synthesis)
-Research-v1 || Research-v2 || Research-v3 → SynthesisWorker → Review
-
-# Conditional branching
-Classifier → {TechnicialPath, AnalyticsPath, CreativePath} → Review
-```
-
-### 10.5 Interactive Feedback & Human-in-the-Loop (P3)
-
-**Goal:** Allow user intervention during task execution.
-
-**Components:**
-- `UserApprovalNode`: Checkpoint for human decision
-- `ProgressRenderer`: Real-time task status display
-- `FeedbackCollector`: Capture mid-execution corrections
-- `AdaptiveRetry`: Adjust strategy based on user feedback
-
-**Scenarios:**
-- Pause execution for review before synthesis step
-- Request user confirmation on tool selections
-- Real-time progress streaming with cancel capability
-
-### 10.6 Rich Result Presentation (P3)
-
-**Goal:** Flexible output formats beyond structured JSON.
-
-**Components:**
-- `ResultFormatter`: Render results as markdown, HTML, PDF, interactive dashboards
-- `VisualizationEngine`: Auto-generate charts, tables, comparisons
-- `ReportGenerator`: Assemble findings into formatted documents
-- `StreamingRenderer`: Real-time output as tasks complete
-
-**Output Types:**
-- Markdown reports with embedded analysis
-- Interactive HTML dashboards with drill-down
-- PDF executive summaries
-- Jupyter notebooks with executable cells
-- Video/animation synthesis for complex processes
-
-### 10.7 IDE & Development Environment Integration (P3)
-
-**Goal:** Seamless automation of coding and development workflows.
-
-**Components:**
-- `VSCodeAutomation`: Create projects, write code, run tests
-- `JupyterNotebookWorker`: Data exploration and visualization
-- `GitIntegration`: Commit, branching, pull request automation
-- `TestGeneratorWorker`: Auto-generate test cases
-
-**Capabilities:**
-- Scaffold full projects with one question
-- Auto-generate boilerplate code
-- Run tests and report coverage immediately
-- Suggest refactoring or performance improvements
-
-### 10.8 Observability & Enterprise Features (P4)
-
-**Goal:** Production-grade monitoring and compliance.
-
-**Components:**
-- `DistributedTracing`: OpenTelemetry integration
-- `CostAnalyzer`: Track API calls and compute usage
-- `ComplianceLogger`: Audit trail for regulated workloads
-- `PerformanceProfiler`: Latency and resource metrics per step
-- `MetricsExporter`: Prometheus/Grafana integration
-
-### 10.9 Multi-Model & Multi-Provider Support (P4)
-
-**Goal:** Run the same workflow across different LLM providers.
-
-**Components:**
-- `ModelRouter`: Select best model for task type and budget
-- `OpenAIAdapter`, `AnthropicAdapter`, `HuggingFaceAdapter`
-- `ProviderAggregator`: Compare outputs across providers
-- `LatencyCostOptimizer`: Choose provider based on SLA and budget
-
-### 10.10 Extensibility Framework (P4)
-
-**Goal:** Allow third-party workers and tool plugins.
-
-**Components:**
-- `WorkerRegistry`: Plugin discovery and validation
-- `ToolPlugin`: Standard interface for custom tools
-- `PromptTemplate`: Community prompt library
-- `WorkerMarketplace`: Share proven worker implementations
-
----
-
-## 11. Implementation Phases
-
-| Phase | Timeline | Focus | Goal |
-|-------|----------|-------|------|
-| **Phase 1 (Practical V1)** | 1-2 months | Bounded dynamic routing, local models, core toolchain, observability | Deliver immediate usability |
-| **Phase 2 (Dynamic)** | 2-3 months | Richer adaptive routing, dynamic tools, NLP decomposition | Support diverse use cases |
-| **Phase 3 (Parallel)** | 3-4 months | Concurrent execution, multi-agent collaboration, interactive feedback | Scale to complex workflows |
-| **Phase 4 (Enterprise)** | 4+ months | Enterprise features, IDE integration, multi-provider support | Production deployments |
-
----
-
-## 12. Capability Matrix
-
-| Capability | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Notes |
-|-----------|-----|--------|--------|---------|-------|
-| Fixed workflows | ✅ | ✅ | ✅ | ✅ | Foundation |
-| Bounded workflow routing | ✅ | ✅ | ✅ | ✅ | V1 usability requirement |
-| Local model support | ✅ | ✅ | ✅ | ✅ | Via Ollama |
-| Structured output | ✅ | ✅ | ✅ | ✅ | Pydantic schemas |
-| Audit logging | ✅ | ✅ | ✅ | ✅ | JSON artifacts |
-| **Dynamic workflows** | ⏳ | ✅ | ✅ | ✅ | Starts bounded in V1 |
-| **Tool integration** | ✅ | ✅ | ✅ | ✅ | Local-first in V1, broader later |
-| **Parallel execution** | ❌ | ⏳ | ✅ | ✅ | Async supervisor |
-| **NLP decomposition** | ⏳ | ⏳ | ✅ | ✅ | Starts as bounded classification |
-| **Human-in-loop** | ❌ | ❌ | ✅ | ✅ | Interactive checkpoints |
-| **Rich formatting** | ❌ | ❌ | ✅ | ✅ | HTML, PDF, notebooks |
-| **IDE automation** | ❌ | ❌ | ⏳ | ✅ | VSCode, Jupyter |
-| **Multi-provider** | ❌ | ❌ | ❌ | ✅ | OpenAI, Anthropic, etc. |
-| **Observability** | ✅ | ✅ | ✅ | ✅ | Grows with phases |
-| **Plugins/Marketplace** | ❌ | ❌ | ❌ | ✅ | Community extensibility |
-
-That sequence matters because the framework needs to be useful on day one without collapsing into an unbounded platform build.
+That sequencing matters. The orchestrator should stay useful, testable, and understandable at each step instead of becoming a generic platform before the current baseline is truly stable.
