@@ -20,8 +20,19 @@ This document defines the first installer-oriented packaging target for the proj
 - a packaging-friendly launcher entrypoint: `agent-orchestrator-ui`
 - desktop-mode runtime paths that move audit and acceptance artifacts out of the repo and into normal user locations
 - a macOS build scaffold script: `scripts/build_macos_app.sh`
+- a post-build validation script: `scripts/validate_macos_app.sh`
 
 This is packaging groundwork, not a signed or notarized end-user release.
+
+## Local Validation Status
+
+The first local macOS app-bundle preview has now been built successfully on the maintainer machine.
+
+Current state:
+
+- local `.app` bundle generation works
+- packaged resources include `app.py`, `docs/project_status.json`, and the built-in sample datasets
+- the next meaningful validation step is a second-machine launch check, not another same-machine build
 
 ## Desktop Runtime Paths On macOS
 
@@ -59,6 +70,14 @@ If the build succeeds, the app bundle is written under:
 ```text
 dist/macos/Agent Orchestrator.app
 ```
+
+The build script now ends by running:
+
+```bash
+bash scripts/validate_macos_app.sh
+```
+
+You can rerun that validation step independently after moving or reusing the bundle.
 
 ## Current Caveats
 

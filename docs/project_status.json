@@ -1,8 +1,8 @@
 {
   "current_phase": "Phase 1 (Practical V1)",
   "current_milestone": "M5: Desktop Packaging Readiness",
-  "next_milestone": "First macOS app-bundle preview",
-  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, a guided Streamlit inspection UI, and beta-facing onboarding docs including a support matrix and task pack. The current push is to bridge the gap between the repo-based technical beta and a future installer-based beta by keeping the guided UI simple, moving desktop-mode runtime data into user-writable app folders, and validating a first macOS packaging path.",
+  "next_milestone": "Second-machine macOS app validation",
+  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, a guided Streamlit inspection UI, and beta-facing onboarding docs including a support matrix and task pack. The current push is to bridge the gap between the repo-based technical beta and a future installer-based beta by keeping the guided UI simple, moving desktop-mode runtime data into user-writable app folders, and validating the first locally built macOS app preview on another machine.",
   "completed_items": [
     "Closed-loop supervisor orchestration with research, writing, and optional review stages",
     "Bounded workflow planning that routes between research, analysis, comparison, and hybrid advisory/context requests",
@@ -15,10 +15,11 @@
     "Guided-mode starter tasks that preload beginner-friendly sample workflows in the Streamlit UI",
     "Packaging-friendly desktop launcher entrypoint for future native app bundling",
     "Desktop-mode runtime paths that move persisted UI artifacts into user-writable app locations",
-    "macOS packaging preview doc and build scaffold"
+    "macOS packaging preview doc and build scaffold",
+    "First local macOS app-bundle preview built and structurally validated"
   ],
   "next_items": [
-    "Build and validate the first macOS app-bundle preview on a second machine",
+    "Launch and validate the built macOS app preview on a second machine",
     "Verify that desktop-mode first run works without depending on a repo checkout",
     "Continue broadening bounded workflow planning and guarded analysis/comparison tools without destabilizing the guided UI"
   ]

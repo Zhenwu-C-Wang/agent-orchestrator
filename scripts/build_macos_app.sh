@@ -62,3 +62,5 @@ mkdir -p "${DIST_DIR}" "${BUILD_DIR}"
 echo
 echo "Built macOS app preview at:"
 echo "  ${DIST_DIR}/${APP_NAME}.app"
+
+bash "${ROOT_DIR}/scripts/validate_macos_app.sh"

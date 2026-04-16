@@ -424,6 +424,7 @@ The stabilization backlog should remain subordinate to the three milestone theme
 ├── main.py
 ├── scripts/
 │   ├── build_macos_app.sh
+│   ├── validate_macos_app.sh
 │   └── start_beta.sh
 ├── docs/
 │   ├── architecture.md
