@@ -21,6 +21,12 @@ For the current beta support promise, see [docs/beta_support_matrix.md](docs/bet
 For the standard tester prompts and expected workflow paths, see [docs/beta_task_pack.md](docs/beta_task_pack.md).
 For current beta support limits and common failure modes, see [docs/known_issues.md](docs/known_issues.md).
 
+If you want the simplest local beta launcher:
+
+```bash
+bash scripts/start_beta.sh
+```
+
 ## Streamlit UI
 
 Run a minimal local UI that can accept input, preview the workflow plan, execute the orchestrator, and display traces plus outputs:
@@ -327,6 +333,7 @@ This repository should now be understood as a maintained V1 baseline rather than
 ### Beta Trial Docs
 
 - **Recommended first-run guide**: [docs/beta_quickstart.md](docs/beta_quickstart.md)
+- **One-command beta launcher**: [scripts/start_beta.sh](./scripts/start_beta.sh)
 - **Support matrix**: [docs/beta_support_matrix.md](docs/beta_support_matrix.md)
 - **Standard trial prompts**: [docs/beta_task_pack.md](docs/beta_task_pack.md)
 - **Known issues and support scope**: [docs/known_issues.md](docs/known_issues.md)
@@ -366,4 +373,5 @@ See [ROADMAP.md](ROADMAP.md) for the current baseline, near-term priorities, and
 - [docs/beta_task_pack.md](./docs/beta_task_pack.md)
 - [docs/known_issues.md](./docs/known_issues.md)
 - [docs/quickstart.md](./docs/quickstart.md)
+- [scripts/start_beta.sh](./scripts/start_beta.sh)
 - [ROADMAP.md](./ROADMAP.md)

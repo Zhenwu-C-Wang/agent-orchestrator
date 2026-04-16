@@ -31,6 +31,16 @@ The current beta path is not yet optimized for:
 
 ## 1. Install
 
+If you want the shortest path, use the beta launcher script from the repo root:
+
+```bash
+bash scripts/start_beta.sh
+```
+
+That script creates `.venv` when needed, installs the UI dependencies, and starts Streamlit on the default port.
+
+If you prefer the manual path instead, follow the steps below.
+
 Create and activate a virtual environment:
 
 ```bash

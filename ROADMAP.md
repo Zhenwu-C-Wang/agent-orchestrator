@@ -342,6 +342,7 @@ Expected response loop:
 For the first beta, the project should commit to one packaging story:
 
 - distribution model: repository plus local setup instructions
+- shortest launcher: `bash scripts/start_beta.sh`
 - primary launcher: Streamlit UI
 - fallback launcher: CLI
 
@@ -370,6 +371,8 @@ The stabilization backlog should remain subordinate to the three milestone theme
 │       └── beta_feedback.md
 ├── app.py
 ├── main.py
+├── scripts/
+│   └── start_beta.sh
 ├── docs/
 │   ├── architecture.md
 │   ├── beta_quickstart.md
