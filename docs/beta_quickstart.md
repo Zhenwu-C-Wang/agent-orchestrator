@@ -23,6 +23,12 @@ The current beta path is not yet optimized for:
 - a browser for the Streamlit UI
 - optional: Ollama installed locally if you want to try the local-model path
 
+## Reference Docs
+
+- [beta_support_matrix.md](./beta_support_matrix.md) for the current support promise and runner matrix
+- [beta_task_pack.md](./beta_task_pack.md) for the standard prompts and expected workflows
+- [known_issues.md](./known_issues.md) for troubleshooting and current caveats
+
 ## 1. Install
 
 Create and activate a virtual environment:
@@ -123,6 +129,7 @@ What to watch for:
 - whether retries or parse failures surface clearly in the UI or CLI
 
 The Ollama path is still a narrower, best-effort beta surface than the fake runner. Treat the fake runner as the baseline onboarding path.
+If you want a more structured evaluation order, use [beta_task_pack.md](./beta_task_pack.md).
 
 ## 6. Optional CLI Validation
 

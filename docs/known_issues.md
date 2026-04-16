@@ -1,6 +1,7 @@
 # Known Issues And Beta Support Scope
 
 This document tracks the current support boundary for external testers. It is intentionally conservative.
+For the explicit beta support promise, see [beta_support_matrix.md](./beta_support_matrix.md).
 
 ## Current Beta Support Scope
 
@@ -99,6 +100,9 @@ What to know:
 
 - research-style tasks typically route to `research_then_write`
 - analysis-style tasks, attached files, or attached URLs typically route to `analysis_then_write`
+- direct comparison across multiple attached contexts typically routes to `comparison_then_write`
+- advisory requests over attached context may broaden into `research_then_analysis_then_write` or `research_then_comparison_then_write`
+- inline file and URL discovery are disabled by default unless you explicitly opt in
 
 What to do:
 

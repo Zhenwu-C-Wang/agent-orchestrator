@@ -17,6 +17,8 @@ python main.py "How should I bootstrap a supervisor-worker system?" --runner fak
 
 For scenario-based walkthroughs, see [docs/quickstart.md](docs/quickstart.md).
 If you are evaluating the project for the first time, start with [docs/beta_quickstart.md](docs/beta_quickstart.md).
+For the current beta support promise, see [docs/beta_support_matrix.md](docs/beta_support_matrix.md).
+For the standard tester prompts and expected workflow paths, see [docs/beta_task_pack.md](docs/beta_task_pack.md).
 For current beta support limits and common failure modes, see [docs/known_issues.md](docs/known_issues.md).
 
 ## Streamlit UI
@@ -324,6 +326,8 @@ This repository should now be understood as a maintained V1 baseline rather than
 ### Beta Trial Docs
 
 - **Recommended first-run guide**: [docs/beta_quickstart.md](docs/beta_quickstart.md)
+- **Support matrix**: [docs/beta_support_matrix.md](docs/beta_support_matrix.md)
+- **Standard trial prompts**: [docs/beta_task_pack.md](docs/beta_task_pack.md)
 - **Known issues and support scope**: [docs/known_issues.md](docs/known_issues.md)
 - **Structured feedback template**: [.github/ISSUE_TEMPLATE/beta_feedback.md](.github/ISSUE_TEMPLATE/beta_feedback.md)
 
@@ -357,6 +361,8 @@ See [ROADMAP.md](ROADMAP.md) for the current baseline, near-term priorities, and
 - [tests/](./tests)
 - [docs/architecture.md](./docs/architecture.md)
 - [docs/beta_quickstart.md](./docs/beta_quickstart.md)
+- [docs/beta_support_matrix.md](./docs/beta_support_matrix.md)
+- [docs/beta_task_pack.md](./docs/beta_task_pack.md)
 - [docs/known_issues.md](./docs/known_issues.md)
 - [docs/quickstart.md](./docs/quickstart.md)
 - [ROADMAP.md](./ROADMAP.md)

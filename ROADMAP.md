@@ -51,7 +51,7 @@ The repository should be treated as a maintained local-first orchestration basel
 - local cache inspection and maintenance CLI
 - normalized CLI exit codes for automation
 - a guided Streamlit console for plan preview, route warnings, result inspection, recent-run visibility, acceptance inspection, cache inspection, and export
-- beta-facing onboarding docs and a structured beta feedback template
+- beta-facing onboarding docs, support matrix, trial task pack, and a structured beta feedback template
 
 ### Current Constraints
 
@@ -245,6 +245,8 @@ Before inviting external testers, the repo should provide:
 Recommended documentation additions:
 
 - `docs/beta_quickstart.md` or an equivalent section in `README.md`
+- `docs/beta_support_matrix.md` or an equivalent support section in `README.md`
+- `docs/beta_task_pack.md` or an equivalent standard tester prompt pack
 - `docs/known_issues.md` or an equivalent concise troubleshooting section
 - a GitHub issue template or lightweight feedback form
 
@@ -371,6 +373,8 @@ The stabilization backlog should remain subordinate to the three milestone theme
 ├── docs/
 │   ├── architecture.md
 │   ├── beta_quickstart.md
+│   ├── beta_support_matrix.md
+│   ├── beta_task_pack.md
 │   ├── known_issues.md
 │   ├── project_status.json
 │   ├── quickstart.md

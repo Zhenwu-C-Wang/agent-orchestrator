@@ -2,7 +2,7 @@
   "current_phase": "Phase 1 (Practical V1)",
   "current_milestone": "M4: Trial Readiness / Beta Readiness",
   "next_milestone": "Broader bounded workflow templates",
-  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, a guided Streamlit inspection UI, and beta-facing onboarding docs. The current push is to validate external trial use while continuing to broaden bounded routing without dropping inspectability.",
+  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, a guided Streamlit inspection UI, and beta-facing onboarding docs including a support matrix and task pack. The current push is to validate external trial use while continuing to broaden bounded routing without dropping inspectability.",
   "completed_items": [
     "Closed-loop supervisor orchestration with research, writing, and optional review stages",
     "Bounded workflow planning that routes between research, analysis, comparison, and hybrid advisory/context requests",
@@ -10,7 +10,8 @@
     "Local tool integration with file preview, CSV analysis, JSON analysis, bounded dataset computation, and bounded HTTP fetch adapters",
     "Local audit persistence, acceptance reporting, request cache, and retry plumbing",
     "Guided Streamlit inspection for task input, plan preview, route warnings, intermediate results, recent runs, acceptance reports, cache health, per-item drill-downs, and result export",
-    "Trial-readiness roadmap section that defines beta audience, entry surfaces, exit criteria, and feedback expectations"
+    "Trial-readiness roadmap section that defines beta audience, entry surfaces, exit criteria, and feedback expectations",
+    "Beta-facing support matrix, task pack, quickstart, and feedback collection entrypoints"
   ],
   "next_items": [
     "Manually validate the beta quickstart with first-wave external testers",
