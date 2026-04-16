@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import os
+
 import desktop_launcher
+from orchestrator.runtime_paths import UI_MODE_DESKTOP, UI_MODE_ENV_VAR
 
 
 class _FakeBootstrap:
@@ -83,3 +86,15 @@ def test_launch_desktop_ui_skips_browser_when_disabled() -> None:
 
     assert scheduled_calls == []
     assert len(fake_bootstrap.run_calls) == 1
+
+
+def test_launch_desktop_ui_sets_desktop_mode_env(monkeypatch) -> None:
+    fake_bootstrap = _FakeBootstrap()
+    monkeypatch.delenv(UI_MODE_ENV_VAR, raising=False)
+
+    desktop_launcher.launch_desktop_ui(
+        open_browser=False,
+        bootstrap_module=fake_bootstrap,
+    )
+
+    assert os.environ[UI_MODE_ENV_VAR] == UI_MODE_DESKTOP

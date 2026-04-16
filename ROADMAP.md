@@ -197,6 +197,7 @@ Expected changes:
 - provide a packaging-friendly Python UI launcher that can serve as the stable target for native app bundlers
 - separate the current repo-based technical beta from the future installer-based beta in docs and support statements
 - identify one narrow first platform for installer packaging instead of promising every operating system at once
+- validate `macOS` as the first installer-preview target before widening platform scope
 - move default writable runtime artifacts toward user-friendly locations once the packaging story solidifies
 
 Guardrails:
@@ -383,7 +384,7 @@ Required product shift:
 Required deliverables before that installer beta:
 
 - one stable desktop-oriented launcher entrypoint inside the Python project
-- one chosen first operating system for packaged distribution
+- one chosen first operating system for packaged distribution: `macOS`
 - one bundling path such as PyInstaller, Briefcase, or an equivalent native-packaging workflow
 - one documented first-launch behavior covering browser opening or embedded webview behavior
 - one support statement for where logs, runs, and failure details are stored on the tester machine
@@ -397,7 +398,7 @@ Exit criteria for installer beta:
 
 Initial scope recommendation:
 
-- pick one operating system first, not all of them
+- keep `macOS` as the first installer-preview target instead of broadening immediately
 - keep the fake-runner path as the packaged first-run success path
 - treat Ollama support as a later follow-up even inside the installer beta
 
@@ -422,6 +423,7 @@ The stabilization backlog should remain subordinate to the three milestone theme
 ├── desktop_launcher.py
 ├── main.py
 ├── scripts/
+│   ├── build_macos_app.sh
 │   └── start_beta.sh
 ├── docs/
 │   ├── architecture.md
@@ -429,6 +431,7 @@ The stabilization backlog should remain subordinate to the three milestone theme
 │   ├── beta_support_matrix.md
 │   ├── beta_task_pack.md
 │   ├── known_issues.md
+│   ├── macos_packaging.md
 │   ├── project_status.json
 │   ├── quickstart.md
 │   └── sample_data/
@@ -450,6 +453,7 @@ The stabilization backlog should remain subordinate to the three milestone theme
 │   ├── inspection.py
 │   ├── planner.py
 │   ├── project_status.py
+│   ├── runtime_paths.py
 │   ├── router.py
 │   ├── runs.py
 │   ├── supervisor.py
@@ -470,12 +474,14 @@ The stabilization backlog should remain subordinate to the three milestone theme
 │   ├── test_cache.py
 │   ├── test_cache_query.py
 │   ├── test_cli.py
+│   ├── test_desktop_launcher.py
 │   ├── test_exit_codes.py
 │   ├── test_inspection.py
 │   ├── test_ollama_runner.py
 │   ├── test_project_status.py
 │   ├── test_run_query.py
 │   ├── test_review_workflow.py
+│   ├── test_runtime_paths.py
 │   ├── test_supervisor.py
 │   ├── test_task_planner.py
 │   └── test_tool_manager.py

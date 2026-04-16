@@ -19,6 +19,7 @@ It describes the current repo-based beta, not a native desktop-installer release
 | Required Python version | 3.11+ |
 | Hosted deployment support | not in scope |
 | Native installer support | not shipped yet |
+| Installer preview target | macOS |
 
 ## Entry Surface Matrix
 
@@ -30,6 +31,10 @@ It describes the current repo-based beta, not a native desktop-installer release
 | CLI | supported | Good for validation, automation, and troubleshooting |
 | Hosted demo | not supported | Not part of the first beta wave |
 | Desktop installer | not supported yet | Packaging groundwork is in progress, but no native installer is shipped today |
+
+## Installer Preview Direction
+
+Installer work is now intentionally targeting `macOS` first. That does not mean a native end-user installer is ready today. It means packaging validation should stay narrow until the first app-bundle path is proven on a second machine.
 
 ## Runner Matrix
 

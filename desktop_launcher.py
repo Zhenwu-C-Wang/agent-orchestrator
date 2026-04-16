@@ -1,17 +1,29 @@
 from __future__ import annotations
 
 import argparse
+import os
 import socket
+import sys
 import threading
 import time
 import webbrowser
 from pathlib import Path
 from typing import Any, Callable
 
-APP_PATH = Path(__file__).resolve().parent / "app.py"
+from orchestrator.runtime_paths import UI_MODE_DESKTOP, UI_MODE_ENV_VAR
+
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8501
 DEFAULT_BROWSER_TIMEOUT_SECONDS = 15.0
+
+
+def get_resource_root() -> Path:
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(getattr(sys, "_MEIPASS"))
+    return Path(__file__).resolve().parent
+
+
+APP_PATH = get_resource_root() / "app.py"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -123,6 +135,7 @@ def launch_desktop_ui(
 ) -> None:
     bootstrap = bootstrap_module or _load_streamlit_bootstrap()
     flags = build_flag_options(host, port)
+    os.environ.setdefault(UI_MODE_ENV_VAR, UI_MODE_DESKTOP)
 
     if open_browser:
         scheduler = browser_scheduler or _schedule_browser_open

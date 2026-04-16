@@ -351,6 +351,7 @@ This repository should now be understood as a maintained V1 baseline rather than
 - **Support matrix**: [docs/beta_support_matrix.md](docs/beta_support_matrix.md)
 - **Standard trial prompts**: [docs/beta_task_pack.md](docs/beta_task_pack.md)
 - **Known issues and support scope**: [docs/known_issues.md](docs/known_issues.md)
+- **macOS packaging preview**: [docs/macos_packaging.md](docs/macos_packaging.md)
 - **Structured feedback template**: [.github/ISSUE_TEMPLATE/beta_feedback.md](.github/ISSUE_TEMPLATE/beta_feedback.md)
 
 ### Long-Term Directions
@@ -386,6 +387,9 @@ See [ROADMAP.md](ROADMAP.md) for the current baseline, near-term priorities, and
 - [docs/beta_support_matrix.md](./docs/beta_support_matrix.md)
 - [docs/beta_task_pack.md](./docs/beta_task_pack.md)
 - [docs/known_issues.md](./docs/known_issues.md)
+- [docs/macos_packaging.md](./docs/macos_packaging.md)
 - [docs/quickstart.md](./docs/quickstart.md)
+- [desktop_launcher.py](./desktop_launcher.py)
+- [scripts/build_macos_app.sh](./scripts/build_macos_app.sh)
 - [scripts/start_beta.sh](./scripts/start_beta.sh)
 - [ROADMAP.md](./ROADMAP.md)

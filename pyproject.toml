@@ -19,6 +19,9 @@ dev = [
 ui = [
   "streamlit>=1.37,<2.0",
 ]
+packaging = [
+  "pyinstaller>=6.0,<7.0",
+]
 
 [project.scripts]
 agent-orchestrator = "main:main"
