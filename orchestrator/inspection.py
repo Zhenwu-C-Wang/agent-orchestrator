@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from schemas.acceptance_schema import AcceptanceCaseComparison, AcceptanceCaseResult, AcceptanceComparison, AcceptanceRecord
@@ -542,6 +542,230 @@ def build_cache_entry_detail(
     )
 
 
+def build_acceptance_export_payload(
+    record: AcceptanceRecord,
+    *,
+    comparison: AcceptanceComparison | None = None,
+    selected_case: AcceptanceCaseResult | None = None,
+    selected_case_comparison: AcceptanceCaseComparison | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "run_id": record.run_id,
+        "status": record.status,
+        "created_at": record.created_at,
+        "metadata": record.metadata,
+        "report": record.report.model_dump(mode="json"),
+        "overview": _serialize_dataclass(
+            build_acceptance_overview(record, comparison=comparison)
+        ),
+    }
+    if comparison is not None:
+        payload["comparison"] = comparison.model_dump(mode="json")
+    if selected_case is not None:
+        payload["selected_case"] = selected_case.model_dump(mode="json")
+        payload["selected_case_detail"] = _serialize_dataclass(
+            build_acceptance_case_detail(
+                selected_case,
+                case_comparison=selected_case_comparison,
+            )
+        )
+    if selected_case_comparison is not None:
+        payload["selected_case_comparison"] = selected_case_comparison.model_dump(mode="json")
+    return payload
+
+
+def format_acceptance_export_markdown(
+    record: AcceptanceRecord,
+    *,
+    comparison: AcceptanceComparison | None = None,
+    selected_case: AcceptanceCaseResult | None = None,
+    selected_case_comparison: AcceptanceCaseComparison | None = None,
+) -> str:
+    overview = build_acceptance_overview(record, comparison=comparison)
+    lines = [
+        "# Acceptance Inspection",
+        "",
+        f"- Run ID: `{record.run_id}`",
+        f"- Status: `{record.status}`",
+        f"- Runner: `{record.report.runner}`",
+        f"- Created At: `{record.created_at}`",
+        f"- Review Enabled: `{record.report.enable_review}`",
+        "",
+        "## Overview",
+        "",
+        overview.summary,
+        "",
+    ]
+    _extend_markdown_metrics(lines, overview.metrics)
+    _extend_markdown_list(lines, "Highlights", overview.highlights, level=3)
+    _extend_markdown_list(lines, "Warnings", overview.warnings, level=3)
+    _extend_markdown_list(lines, "Next Actions", overview.next_actions, level=3)
+    if overview.changed_case_rows:
+        lines.extend(["## Changed Cases", ""])
+        lines.extend(
+            (
+                f"- {row['question']} | baseline_passed={row['baseline_passed']} | "
+                f"current_passed={row['current_passed']} | regression={row['regression']} | "
+                f"improvement={row['improvement']}"
+            )
+            for row in overview.changed_case_rows
+        )
+        lines.append("")
+
+    if selected_case is not None:
+        detail = build_acceptance_case_detail(
+            selected_case,
+            case_comparison=selected_case_comparison,
+        )
+        lines.extend(
+            [
+                "## Selected Case",
+                "",
+                f"- Question: {selected_case.question}",
+                detail.summary,
+                "",
+            ]
+        )
+        _extend_markdown_metrics(lines, detail.metrics)
+        _extend_markdown_list(lines, "Case Highlights", detail.highlights, level=3)
+        _extend_markdown_list(lines, "Case Warnings", detail.warnings, level=3)
+        _extend_markdown_list(lines, "Case Next Actions", detail.next_actions, level=3)
+        if detail.result_overview is not None:
+            lines.extend(
+                [
+                    "### Result Overview",
+                    "",
+                    detail.result_overview.summary,
+                    "",
+                ]
+            )
+            _extend_markdown_metrics(lines, detail.result_overview.metrics)
+            _extend_markdown_list(lines, "Result Highlights", detail.result_overview.highlights, level=4)
+            _extend_markdown_list(lines, "Result Next Actions", detail.result_overview.next_actions, level=4)
+        if detail.trace_rows:
+            lines.extend(["### Trace", ""])
+            lines.extend(
+                (
+                    f"- {row['worker']} | {row['task_type']} | {row['status']} | "
+                    f"{row['duration_ms']} ms"
+                )
+                for row in detail.trace_rows
+            )
+            lines.append("")
+        if detail.tool_rows:
+            lines.extend(["### Tools", ""])
+            lines.extend(
+                (
+                    f"- {row['tool_name']} | {row['status']} | "
+                    f"{row['output_summary']}"
+                )
+                for row in detail.tool_rows
+            )
+            lines.append("")
+        if detail.final_answer_preview:
+            lines.extend(
+                [
+                    "### Final Answer Preview",
+                    "",
+                    _truncate_text(detail.final_answer_preview, max_chars=600),
+                    "",
+                ]
+            )
+    return "\n".join(lines).rstrip()
+
+
+def build_cache_export_payload(
+    summary: dict[str, Any],
+    *,
+    recent_entries: list[dict[str, Any]],
+    selected_entry: CacheEntry | None = None,
+    expired: bool | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "summary": summary,
+        "overview": _serialize_dataclass(
+            build_cache_overview(summary, recent_entries=recent_entries)
+        ),
+        "recent_entries": recent_entries,
+    }
+    if selected_entry is not None:
+        payload["selected_entry"] = selected_entry.model_dump(mode="json")
+        payload["selected_entry_expired"] = bool(expired)
+        payload["selected_entry_detail"] = _serialize_dataclass(
+            build_cache_entry_detail(
+                selected_entry,
+                expired=bool(expired),
+            )
+        )
+    return payload
+
+
+def format_cache_export_markdown(
+    summary: dict[str, Any],
+    *,
+    recent_entries: list[dict[str, Any]],
+    selected_entry: CacheEntry | None = None,
+    expired: bool | None = None,
+) -> str:
+    overview = build_cache_overview(summary, recent_entries=recent_entries)
+    lines = [
+        "# Cache Inspection",
+        "",
+        "## Overview",
+        "",
+        overview.summary,
+        "",
+    ]
+    _extend_markdown_metrics(lines, overview.metrics)
+    _extend_markdown_list(lines, "Highlights", overview.highlights, level=3)
+    _extend_markdown_list(lines, "Warnings", overview.warnings, level=3)
+    _extend_markdown_list(lines, "Next Actions", overview.next_actions, level=3)
+    if overview.recent_entry_rows:
+        lines.extend(["## Recent Entries", ""])
+        lines.extend(
+            (
+                f"- {row['created_at']} | {row['task_type']} | "
+                f"{row['response_model']} | expired={row['expired']}"
+            )
+            for row in overview.recent_entry_rows
+        )
+        lines.append("")
+
+    if selected_entry is not None:
+        detail = build_cache_entry_detail(selected_entry, expired=bool(expired))
+        lines.extend(
+            [
+                "## Selected Entry",
+                "",
+                f"- Cache Key: `{selected_entry.cache_key}`",
+                f"- Created At: `{selected_entry.created_at}`",
+                detail.summary,
+                "",
+            ]
+        )
+        _extend_markdown_metrics(lines, detail.metrics)
+        _extend_markdown_list(lines, "Entry Highlights", detail.highlights, level=3)
+        _extend_markdown_list(lines, "Entry Warnings", detail.warnings, level=3)
+        _extend_markdown_list(lines, "Entry Next Actions", detail.next_actions, level=3)
+        if detail.metadata_rows:
+            lines.extend(["### Metadata", ""])
+            lines.extend(
+                f"- {row['key']}: {row['value']}"
+                for row in detail.metadata_rows
+            )
+            lines.append("")
+        if detail.response_preview:
+            lines.extend(
+                [
+                    "### Response Preview",
+                    "",
+                    detail.response_preview,
+                    "",
+                ]
+            )
+    return "\n".join(lines).rstrip()
+
+
 def _route_label(workflow_name: str) -> str:
     if workflow_name == "research_then_comparison_then_write":
         return "Hybrid Comparison Route"
@@ -663,6 +887,27 @@ def _truncate_text(value: str, *, max_chars: int) -> str:
     if len(value) <= max_chars:
         return value
     return f"{value[: max_chars - 3].rstrip()}..."
+
+
+def _serialize_dataclass(value: Any) -> Any:
+    if hasattr(value, "__dataclass_fields__"):
+        return asdict(value)
+    return value
+
+
+def _extend_markdown_metrics(lines: list[str], metrics: list[InspectionMetric]) -> None:
+    if not metrics:
+        return
+    lines.extend(f"- {metric.label}: {metric.value}" for metric in metrics)
+    lines.append("")
+
+
+def _extend_markdown_list(lines: list[str], heading: str, items: list[str], *, level: int) -> None:
+    if not items:
+        return
+    lines.extend([f"{'#' * level} {heading}", ""])
+    lines.extend(f"- {item}" for item in items)
+    lines.append("")
 
 
 def _dedupe_preserve_order(items: list[str]) -> list[str]:

@@ -178,3 +178,4 @@ The UI is useful when you want to:
 - review recent persisted runs with the same inspection summary if an audit directory is configured
 - inspect persisted acceptance reports and local cache health from the same console when those directories are configured
 - drill into one acceptance case or one cache entry when you need to inspect regressions, traces, tool usage, metadata, or response previews
+- export the currently selected acceptance inspection or cache inspection as JSON or Markdown when you need to share findings with another tester

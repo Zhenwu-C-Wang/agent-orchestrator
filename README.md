@@ -337,7 +337,7 @@ This repository should now be understood as a maintained V1 baseline rather than
 - **Model flexibility**: fake and Ollama runners share the same orchestration contract.
 - **Local observability**: audit persistence, run queries, acceptance persistence, and acceptance comparison all operate on local JSON artifacts.
 - **Retry and cache controls**: request-level structured result caching, TTL expiry, and model-layer retry behavior are all built in.
-- **Guided local UI**: the Streamlit console previews workflow selection, surfaces route warnings and inspection summaries, renders recent runs, and exposes acceptance/cache inspection with per-item drill-downs plus export.
+- **Guided local UI**: the Streamlit console previews workflow selection, surfaces route warnings and inspection summaries, renders recent runs, and exposes acceptance/cache inspection with per-item drill-downs plus shareable JSON/Markdown export.
 
 ### Near-Term Priorities
 

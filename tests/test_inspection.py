@@ -3,14 +3,18 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 
-from schemas.acceptance_schema import AcceptanceCaseComparison, AcceptanceCaseResult, AcceptanceReport
+from schemas.acceptance_schema import AcceptanceCaseComparison, AcceptanceCaseResult, AcceptanceRecord, AcceptanceReport
 from orchestrator.inspection import (
     build_acceptance_overview,
     build_acceptance_case_detail,
+    build_acceptance_export_payload,
     build_cache_overview,
     build_cache_entry_detail,
+    build_cache_export_payload,
     build_plan_guidance,
     build_result_overview,
+    format_acceptance_export_markdown,
+    format_cache_export_markdown,
 )
 from orchestrator.planner import TaskPlanner
 from tools.acceptance import AcceptanceLogger, AcceptanceStore
@@ -262,3 +266,78 @@ def test_cache_entry_detail_surfaces_preview_and_expiry(tmp_path) -> None:
     assert any(metric.label == "Response" for metric in detail.metrics)
     assert detail.response_preview is not None
     assert any(row["key"] == "task_type" for row in detail.metadata_rows)
+
+
+def test_acceptance_export_payload_and_markdown_include_selected_case(tmp_path) -> None:
+    csv_path = tmp_path / "sales.csv"
+    csv_path.write_text("quarter,revenue\nQ1,10\nQ2,20\n", encoding="utf-8")
+
+    supervisor = build_supervisor(runner_name="fake")
+    result = supervisor.run_with_context(
+        "Analyze this dataset and recommend what we should prioritize next.",
+        context_files=[str(csv_path)],
+    )
+    case = AcceptanceCaseResult(
+        question=result.question,
+        passed=True,
+        duration_ms=25,
+        trace_order=[trace.worker_name for trace in result.traces],
+        result=result,
+    )
+    record = AcceptanceRecord(
+        run_id="acceptance-run-1",
+        status="completed",
+        created_at="2026-04-16T00:00:00+00:00",
+        report=AcceptanceReport(
+            runner="fake",
+            model=None,
+            enable_review=False,
+            total_cases=1,
+            passed_cases=1,
+            failed_cases=0,
+            case_results=[case],
+        ),
+    )
+
+    payload = build_acceptance_export_payload(record, selected_case=case)
+    markdown = format_acceptance_export_markdown(record, selected_case=case)
+
+    assert payload["overview"]["headline"] == "Acceptance Report"
+    assert payload["selected_case"]["question"] == result.question
+    assert payload["selected_case_detail"]["headline"] == "Acceptance Case Detail"
+    assert "## Selected Case" in markdown
+    assert result.question in markdown
+
+
+def test_cache_export_payload_and_markdown_include_selected_entry(tmp_path) -> None:
+    cache_dir = tmp_path / "cache"
+    supervisor = build_supervisor(
+        runner_name="fake",
+        enable_review=True,
+        cache_dir=str(cache_dir),
+    )
+    supervisor.run("How should I bootstrap a supervisor-worker system?")
+
+    cache = StructuredResultCache(cache_dir, max_age_seconds=60)
+    entries = cache.list_entries(limit=5)
+    entry = entries[0]
+    recent_entries = [cache.summarize_entry(item) for item in entries]
+
+    payload = build_cache_export_payload(
+        cache.summarize_cache(),
+        recent_entries=recent_entries,
+        selected_entry=entry,
+        expired=False,
+    )
+    markdown = format_cache_export_markdown(
+        cache.summarize_cache(),
+        recent_entries=recent_entries,
+        selected_entry=entry,
+        expired=False,
+    )
+
+    assert payload["overview"]["headline"] == "Cache Health"
+    assert payload["selected_entry"]["cache_key"] == entry.cache_key
+    assert payload["selected_entry_detail"]["headline"] == "Cache Entry Detail"
+    assert "## Selected Entry" in markdown
+    assert entry.cache_key in markdown

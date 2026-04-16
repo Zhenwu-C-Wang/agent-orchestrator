@@ -11,10 +11,14 @@ from orchestrator.bootstrap import build_supervisor, format_markdown, format_pre
 from orchestrator.inspection import (
     build_acceptance_overview,
     build_acceptance_case_detail,
+    build_acceptance_export_payload,
     build_cache_overview,
     build_cache_entry_detail,
+    build_cache_export_payload,
     build_plan_guidance,
     build_result_overview,
+    format_acceptance_export_markdown,
+    format_cache_export_markdown,
 )
 from orchestrator.planner import TaskPlanner
 from orchestrator.project_status import load_project_status
@@ -333,6 +337,36 @@ def _render_downloads(result: WorkflowResult) -> None:
     )
 
 
+def _safe_export_name(value: str) -> str:
+    normalized = "".join(char if char.isalnum() or char in "-._" else "-" for char in value)
+    normalized = normalized.strip("-._")
+    return normalized or "inspection"
+
+
+def _render_export_buttons(
+    *,
+    label_prefix: str,
+    payload: dict[str, object],
+    markdown_output: str,
+    base_filename: str,
+) -> None:
+    payload_json = json.dumps(payload, indent=2, ensure_ascii=False)
+    st.markdown("**Export**")
+    json_column, markdown_column = st.columns(2)
+    json_column.download_button(
+        label=f"Download {label_prefix} JSON",
+        data=payload_json,
+        file_name=f"{base_filename}.json",
+        mime="application/json",
+    )
+    markdown_column.download_button(
+        label=f"Download {label_prefix} Markdown",
+        data=markdown_output,
+        file_name=f"{base_filename}.md",
+        mime="text/markdown",
+    )
+
+
 def _render_project_status() -> None:
     status = load_project_status()
     st.subheader("Project Status")
@@ -483,6 +517,22 @@ def _render_acceptance_reports(report_dir: str) -> None:
         if case_detail.final_answer_preview:
             st.markdown("**Final Answer Preview**")
             st.write(case_detail.final_answer_preview)
+        _render_export_buttons(
+            label_prefix="Acceptance Inspection",
+            payload=build_acceptance_export_payload(
+                selected,
+                comparison=comparison,
+                selected_case=selected_case,
+                selected_case_comparison=selected_case_comparison,
+            ),
+            markdown_output=format_acceptance_export_markdown(
+                selected,
+                comparison=comparison,
+                selected_case=selected_case,
+                selected_case_comparison=selected_case_comparison,
+            ),
+            base_filename=f"acceptance-inspection-{_safe_export_name(selected.run_id)}",
+        )
 
 
 def _render_recent_runs(audit_dir: str) -> None:
@@ -541,10 +591,11 @@ def _render_cache_snapshot(cache_dir: str, cache_max_age_seconds: float | None) 
         cache_dir,
         max_age_seconds=cache_max_age_seconds,
     )
+    cache_summary = cache.summarize_cache()
     cache_entries = cache.list_entries(limit=20)
     recent_entries = [cache.summarize_entry(entry) for entry in cache_entries[:5]]
     overview = build_cache_overview(
-        cache.summarize_cache(),
+        cache_summary,
         recent_entries=recent_entries,
     )
 
@@ -563,6 +614,8 @@ def _render_cache_snapshot(cache_dir: str, cache_max_age_seconds: float | None) 
         st.markdown("**Next Actions**")
         for item in overview.next_actions:
             st.write(f"- {item}")
+    selected_entry = None
+    selected_entry_expired = False
     if overview.recent_entry_rows:
         st.markdown("**Recent Entries**")
         st.dataframe(overview.recent_entry_rows, use_container_width=True, hide_index=True)
@@ -580,9 +633,10 @@ def _render_cache_snapshot(cache_dir: str, cache_max_age_seconds: float | None) 
             key="cache_entry_select",
         )
         selected_entry = next(entry for entry in cache_entries if entry.cache_key == selected_cache_key)
+        selected_entry_expired = cache.is_entry_expired(selected_entry)
         entry_detail = build_cache_entry_detail(
             selected_entry,
-            expired=cache.is_entry_expired(selected_entry),
+            expired=selected_entry_expired,
         )
         st.markdown(f"**{entry_detail.headline}**")
         st.caption(entry_detail.summary)
@@ -607,6 +661,26 @@ def _render_cache_snapshot(cache_dir: str, cache_max_age_seconds: float | None) 
             st.write(entry_detail.response_preview)
         with st.expander("Cache Response JSON"):
             st.json(selected_entry.response)
+    _render_export_buttons(
+        label_prefix="Cache Inspection",
+        payload=build_cache_export_payload(
+            cache_summary,
+            recent_entries=recent_entries,
+            selected_entry=selected_entry,
+            expired=selected_entry_expired,
+        ),
+        markdown_output=format_cache_export_markdown(
+            cache_summary,
+            recent_entries=recent_entries,
+            selected_entry=selected_entry,
+            expired=selected_entry_expired,
+        ),
+        base_filename=(
+            f"cache-inspection-{_safe_export_name(selected_entry.cache_key[:12])}"
+            if selected_entry is not None
+            else "cache-inspection"
+        ),
+    )
 
 
 def main() -> None:
