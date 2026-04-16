@@ -361,12 +361,18 @@ python -m orchestrator.cache --cache-dir artifacts/cache stats
 
 ## 11. macOS 打包预览
 
-当前仓库已经能在本机产出第一版 `macOS .app` 预览，但它还不是最终给小白用户双击安装的正式版本。
+当前仓库已经能在本机产出第一版 `macOS .app` 和 `.dmg` 预览，但它还不是最终给小白用户双击安装的正式版本。
 
 如果你要构建：
 
 ```bash
 bash scripts/build_macos_app.sh
+```
+
+如果你想生成更接近分发包形态的 DMG：
+
+```bash
+bash scripts/build_macos_dmg.sh
 ```
 
 如果你只想验证产物结构：
@@ -375,10 +381,17 @@ bash scripts/build_macos_app.sh
 bash scripts/validate_macos_app.sh
 ```
 
+或验证 DMG：
+
+```bash
+bash scripts/validate_macos_dmg.sh
+```
+
 当前状态可以概括成：
 
 - 已能本地 build `.app`
-- 已能自动做结构验证
+- 已能本地 build `.dmg`
+- 已能自动做 `.app` 和 `.dmg` 结构验证
 - 还没有做第二台机器验证
 - 还没有完成签名、公证、DMG 或最终分发体验
 

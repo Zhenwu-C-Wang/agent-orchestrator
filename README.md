@@ -394,6 +394,8 @@ See [ROADMAP.md](ROADMAP.md) for the current baseline, near-term priorities, and
 - [docs/quickstart.md](./docs/quickstart.md)
 - [desktop_launcher.py](./desktop_launcher.py)
 - [scripts/build_macos_app.sh](./scripts/build_macos_app.sh)
+- [scripts/build_macos_dmg.sh](./scripts/build_macos_dmg.sh)
 - [scripts/validate_macos_app.sh](./scripts/validate_macos_app.sh)
+- [scripts/validate_macos_dmg.sh](./scripts/validate_macos_dmg.sh)
 - [scripts/start_beta.sh](./scripts/start_beta.sh)
 - [ROADMAP.md](./ROADMAP.md)

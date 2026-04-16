@@ -9,9 +9,9 @@ def test_load_project_status_from_default_file() -> None:
     assert status is not None
     assert status.current_phase == "Phase 1 (Practical V1)"
     assert status.current_milestone.startswith("M5:")
-    assert status.next_milestone == "Second-machine macOS app validation"
+    assert status.next_milestone == "Second-machine macOS DMG validation"
     next_text = " ".join(status.next_items).lower()
-    assert "second machine" in next_text
+    assert "macos app and dmg" in next_text
     assert "repo checkout" in next_text
     assert "workflow" in next_text
 
