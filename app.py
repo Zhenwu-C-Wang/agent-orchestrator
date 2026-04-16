@@ -23,7 +23,79 @@ from tools.acceptance import AcceptanceStore
 from tools.audit import AuditStore
 from tools.cache import StructuredResultCache
 
+REPO_ROOT = Path(__file__).resolve().parent
+SAMPLE_DATA_DIR = REPO_ROOT / "docs" / "sample_data"
+SAMPLE_CSV_PATH = str(SAMPLE_DATA_DIR / "quarterly_metrics.csv")
+SAMPLE_JSON_PATH = str(SAMPLE_DATA_DIR / "quarterly_metrics.json")
+SAMPLE_BASELINE_CSV_PATH = str(SAMPLE_DATA_DIR / "quarterly_metrics_baseline.csv")
 DEFAULT_QUESTION = "How should I bootstrap a supervisor-worker agent system?"
+DEFAULT_AUDIT_DIR = "artifacts/runs"
+DEFAULT_ACCEPTANCE_REPORT_DIR = "artifacts/acceptance"
+STARTER_TASKS: dict[str, dict[str, object]] = {
+    "Research quickstart": {
+        "description": "Start with a simple question and watch the research workflow run end to end.",
+        "question": DEFAULT_QUESTION,
+        "context_files": [],
+        "context_urls": [],
+        "expected_workflow": "research_then_write",
+        "recommended_runner": "fake",
+        "next_step": "Try the CSV analysis quickstart next to see tool usage.",
+    },
+    "CSV analysis quickstart": {
+        "description": "Use the built-in sample CSV so you can see file grounding and tool-backed analysis immediately.",
+        "question": "Summarize the most important changes in this data.",
+        "context_files": [SAMPLE_CSV_PATH],
+        "context_urls": [],
+        "expected_workflow": "analysis_then_write",
+        "recommended_runner": "fake",
+        "next_step": "Try the comparison quickstart next if you want to compare two datasets.",
+    },
+    "JSON analysis quickstart": {
+        "description": "Use the built-in JSON snapshot to exercise the structured JSON analysis path.",
+        "question": "Summarize the most important changes in this JSON snapshot.",
+        "context_files": [SAMPLE_JSON_PATH],
+        "context_urls": [],
+        "expected_workflow": "analysis_then_write",
+        "recommended_runner": "fake",
+        "next_step": "Try the advisory data quickstart to see research plus analysis combined.",
+    },
+    "Comparison quickstart": {
+        "description": "Compare two built-in datasets so the comparison workflow is visible without extra setup.",
+        "question": "Compare these datasets and summarize the most important differences.",
+        "context_files": [SAMPLE_CSV_PATH, SAMPLE_BASELINE_CSV_PATH],
+        "context_urls": [],
+        "expected_workflow": "comparison_then_write",
+        "recommended_runner": "fake",
+        "next_step": "Try the advisory comparison quickstart to see the broader recommendation path.",
+    },
+    "Advisory data quickstart": {
+        "description": "Ask for a recommendation so the app combines research with tool-backed analysis.",
+        "question": "Analyze this dataset and recommend what we should prioritize next.",
+        "context_files": [SAMPLE_CSV_PATH],
+        "context_urls": [],
+        "expected_workflow": "research_then_analysis_then_write",
+        "recommended_runner": "fake",
+        "next_step": "If you want a broader comparison decision, try the advisory comparison quickstart.",
+    },
+    "Advisory comparison quickstart": {
+        "description": "Ask for a recommendation across two built-in datasets to trigger the hybrid comparison route.",
+        "question": "Compare these datasets and recommend which one we should prioritize next.",
+        "context_files": [SAMPLE_CSV_PATH, SAMPLE_BASELINE_CSV_PATH],
+        "context_urls": [],
+        "expected_workflow": "research_then_comparison_then_write",
+        "recommended_runner": "fake",
+        "next_step": "After this, you can switch to Custom task and try your own files.",
+    },
+    "Custom task": {
+        "description": "Use your own prompt, files, or URLs once you are comfortable with the starter flows.",
+        "question": DEFAULT_QUESTION,
+        "context_files": [],
+        "context_urls": [],
+        "expected_workflow": "depends on your input",
+        "recommended_runner": "fake",
+        "next_step": "Attach your own files or URLs below when you are ready.",
+    },
+}
 
 
 def _persist_uploaded_files(uploaded_files: list[object]) -> list[str]:
@@ -46,6 +118,17 @@ def _persist_uploaded_files(uploaded_files: list[object]) -> list[str]:
 
 def _parse_context_urls(raw_value: str) -> list[str]:
     return [line.strip() for line in raw_value.splitlines() if line.strip()]
+
+
+def _merge_distinct(items: list[str], extras: list[str]) -> list[str]:
+    merged: list[str] = []
+    seen: set[str] = set()
+    for item in [*items, *extras]:
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        merged.append(item)
+    return merged
 
 
 def _render_metrics(metrics: list[object]) -> None:
@@ -268,6 +351,32 @@ def _render_project_status() -> None:
         st.markdown("**Next**")
         for item in status.next_items:
             st.write(f"- {item}")
+
+
+def _render_starter_task_guide(starter_name: str, starter_task: dict[str, object], guided_mode: bool) -> None:
+    st.subheader("Start Here")
+    st.caption(str(starter_task["description"]))
+    if guided_mode:
+        st.info(
+            "Recommended first-run path: keep Guided mode on, keep Runner on `fake`, "
+            "and click `Run Workflow` without changing the advanced settings."
+        )
+
+    details: list[str] = [
+        f"Expected workflow: `{starter_task['expected_workflow']}`",
+        f"Recommended runner: `{starter_task['recommended_runner']}`",
+    ]
+    starter_files = [Path(path).name for path in starter_task.get("context_files", [])]
+    starter_urls = [str(url) for url in starter_task.get("context_urls", [])]
+    if starter_files:
+        details.append(f"Built-in sample files: `{', '.join(starter_files)}`")
+    if starter_urls:
+        details.append(f"Built-in URLs: `{', '.join(starter_urls)}`")
+    for item in details:
+        st.write(f"- {item}")
+
+    if starter_name != "Custom task":
+        st.caption(str(starter_task["next_step"]))
 
 
 def _render_acceptance_reports(report_dir: str) -> None:
@@ -506,53 +615,101 @@ def main() -> None:
         st.session_state["last_result"] = None
     if "last_error" not in st.session_state:
         st.session_state["last_error"] = None
+    if "guided_mode" not in st.session_state:
+        st.session_state["guided_mode"] = True
+    if "starter_task" not in st.session_state:
+        st.session_state["starter_task"] = "Research quickstart"
+    if "last_starter_task" not in st.session_state:
+        st.session_state["last_starter_task"] = "Research quickstart"
+    if "task_input" not in st.session_state:
+        st.session_state["task_input"] = DEFAULT_QUESTION
 
     with st.sidebar:
-        st.header("Run Settings")
-        runner_name = st.selectbox("Runner", options=["fake", "ollama"], index=0)
-        model = st.text_input("Model", value="llama3.1", disabled=runner_name == "fake")
-        base_url = st.text_input("Ollama Base URL", value="http://localhost:11434")
-        enable_review = st.checkbox("Enable review stage", value=False)
-        allow_inline_context_files = st.checkbox(
-            "Allow file paths embedded in the question",
-            value=False,
+        st.header("Try It")
+        guided_mode = st.toggle(
+            "Guided mode",
+            value=st.session_state["guided_mode"],
+            help="Hide advanced options and keep the app focused on the recommended first-run path.",
         )
-        allow_inline_context_urls = st.checkbox(
-            "Allow URLs embedded in the question",
-            value=False,
+        st.session_state["guided_mode"] = guided_mode
+        runner_name = st.selectbox(
+            "Runner",
+            options=["fake", "ollama"],
+            index=0,
+            help="Use `fake` for the simplest first run. Switch to `ollama` only after the starter flow succeeds.",
         )
+        if guided_mode:
+            st.caption("For first-time testers: keep `Runner` on `fake` and start with a quickstart task.")
+
+        with st.expander("Advanced settings", expanded=not guided_mode):
+            model = st.text_input("Model", value="llama3.1", disabled=runner_name == "fake")
+            base_url = st.text_input("Ollama Base URL", value="http://localhost:11434")
+            enable_review = st.checkbox("Enable review stage", value=False)
+            allow_inline_context_files = st.checkbox(
+                "Allow file paths embedded in the question",
+                value=False,
+            )
+            allow_inline_context_urls = st.checkbox(
+                "Allow URLs embedded in the question",
+                value=False,
+            )
+            audit_dir = st.text_input("Audit directory", value=DEFAULT_AUDIT_DIR)
+            acceptance_report_dir = st.text_input(
+                "Acceptance report directory",
+                value=DEFAULT_ACCEPTANCE_REPORT_DIR,
+            )
+            cache_dir = st.text_input("Cache directory", value="")
+            cache_max_age_seconds = st.number_input(
+                "Cache TTL seconds",
+                min_value=0.0,
+                value=3600.0,
+                step=60.0,
+            )
+            max_retries = st.number_input("Max retries", min_value=0, value=1, step=1)
+            retry_backoff_seconds = st.number_input(
+                "Retry backoff seconds",
+                min_value=0.0,
+                value=0.25,
+                step=0.25,
+            )
+
+    starter_name = st.selectbox(
+        "Starter Task",
+        options=list(STARTER_TASKS.keys()),
+        help="Pick a guided example or switch to Custom task when you want to try your own prompt.",
+        key="starter_task",
+    )
+    starter_task = STARTER_TASKS[starter_name]
+    if st.session_state["last_starter_task"] != starter_name:
+        st.session_state["task_input"] = str(starter_task["question"])
+        st.session_state["last_starter_task"] = starter_name
+
+    starter_context_files = list(starter_task.get("context_files", []))
+    starter_context_urls = list(starter_task.get("context_urls", []))
+
+    top_left, top_right = st.columns([1, 1])
+    with top_left:
+        _render_starter_task_guide(starter_name, starter_task, guided_mode)
+    with top_right:
+        _render_project_status()
+
+    question = st.text_area("Task Input", key="task_input", height=140)
+
+    with st.expander("Attach your own files or URLs", expanded=starter_name == "Custom task"):
         uploaded_context_files = st.file_uploader(
             "Attach context files",
             accept_multiple_files=True,
+            help="Upload your own files here. Built-in starter tasks already attach sample files automatically.",
         )
         context_urls_raw = st.text_area(
             "Attach context URLs",
             value="",
-            help="One URL per line.",
-        )
-        audit_dir = st.text_input("Audit directory", value="artifacts/runs")
-        acceptance_report_dir = st.text_input(
-            "Acceptance report directory",
-            value="artifacts/acceptance",
-        )
-        cache_dir = st.text_input("Cache directory", value="")
-        cache_max_age_seconds = st.number_input(
-            "Cache TTL seconds",
-            min_value=0.0,
-            value=3600.0,
-            step=60.0,
-        )
-        max_retries = st.number_input("Max retries", min_value=0, value=1, step=1)
-        retry_backoff_seconds = st.number_input(
-            "Retry backoff seconds",
-            min_value=0.0,
-            value=0.25,
-            step=0.25,
+            help="One URL per line. Starter tasks may also include built-in sample context.",
         )
 
-    question = st.text_area("Task Input", value=DEFAULT_QUESTION, height=140)
-    context_files = _persist_uploaded_files(uploaded_context_files)
-    context_urls = _parse_context_urls(context_urls_raw)
+    uploaded_file_paths = _persist_uploaded_files(uploaded_context_files)
+    context_files = _merge_distinct(starter_context_files, uploaded_file_paths)
+    context_urls = _merge_distinct(starter_context_urls, _parse_context_urls(context_urls_raw))
 
     left, right = st.columns([1, 1])
     with left:
@@ -565,7 +722,20 @@ def main() -> None:
             allow_inline_context_urls,
         )
     with right:
-        _render_project_status()
+        st.subheader("Current Input")
+        st.write(f"Starter task: `{starter_name}`")
+        st.write(f"Runner: `{runner_name}`")
+        st.write(f"Review enabled: `{enable_review}`")
+        st.write(f"Context files in use: `{len(context_files)}`")
+        st.write(f"Context URLs in use: `{len(context_urls)}`")
+        if context_files:
+            st.markdown("**Context Files In Use**")
+            for path in context_files:
+                st.write(f"- {Path(path).name}")
+        if context_urls:
+            st.markdown("**Context URLs In Use**")
+            for url in context_urls:
+                st.write(f"- {url}")
 
     settings_left, settings_right = st.columns([1, 1])
     with settings_left:
@@ -637,6 +807,11 @@ def main() -> None:
         result = last_result
         st.divider()
         st.success("Workflow completed.")
+        if guided_mode:
+            st.info(
+                "Nice, the workflow completed end to end. "
+                f"Suggested next step: {starter_task['next_step']}"
+            )
         overview_tab, intermediate_tab, tools_tab, traces_tab, export_tab, raw_tab = st.tabs(
             [
                 "Overview",
@@ -665,8 +840,9 @@ def main() -> None:
     st.divider()
     st.caption(
         "Start the UI with `streamlit run app.py`. "
+        "For first-time testers, keep Guided mode on and begin with one of the starter tasks. "
         "If you want persisted run history, acceptance report inspection, or cache health snapshots, "
-        "configure the corresponding directories in the sidebar."
+        "configure the corresponding directories in Advanced settings."
     )
 
 

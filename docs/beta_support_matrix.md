@@ -9,6 +9,7 @@ This matrix defines the current support promise for the first external beta wave
 | Audience | Technical users running the repo locally |
 | Primary entrypoint | `streamlit run app.py` |
 | Secondary entrypoint | `python main.py "..."` |
+| Default UI mode | Guided mode with built-in starter tasks |
 | Supported runner for first success path | `fake` |
 | Optional runner for follow-up evaluation | `ollama` |
 | Supported operating systems | macOS, Linux |
@@ -19,7 +20,7 @@ This matrix defines the current support promise for the first external beta wave
 
 | Surface | Status | Notes |
 | --- | --- | --- |
-| Streamlit UI | supported | Recommended first-run path for beta testers |
+| Streamlit UI | supported | Recommended first-run path for beta testers, with Guided mode and built-in starter tasks |
 | CLI | supported | Good for validation, automation, and troubleshooting |
 | Hosted demo | not supported | Not part of the first beta wave |
 | Desktop installer | not supported | Deferred |

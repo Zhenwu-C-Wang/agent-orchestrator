@@ -60,19 +60,24 @@ streamlit run app.py
 
 When the page opens:
 
+- leave `Guided mode` on
+- pick one of the built-in `Starter Task` options unless you already know what you want to test
 - keep `Runner` set to `fake`
 - leave `Enable review stage` off for the first run
-- keep the default audit directory unless you specifically want to disable persisted history
+- avoid changing `Advanced settings` on the first run
 
 Why start here:
 
 - it is the fastest way to see the selected workflow
+- it now includes built-in starter tasks and sample context, so testers do not need to find files manually
 - it exposes traces and tool invocations without extra commands
 - it avoids requiring Ollama for the first successful run
 
 ## 3. Complete The First Research Task
 
-Use the default question or paste this into `Task Input`:
+Pick `Research quickstart` in `Starter Task`.
+
+The app will prefill this prompt in `Task Input`:
 
 ```text
 How should I bootstrap a supervisor-worker agent system?
@@ -89,13 +94,9 @@ Success looks like this:
 
 ## 4. Complete The First Analysis Task
 
-In the sidebar, use `Attach context files` and upload:
+Pick `CSV analysis quickstart` in `Starter Task`.
 
-```text
-docs/sample_data/quarterly_metrics.csv
-```
-
-Then use this task:
+The app will attach the built-in sample CSV automatically and prefill this task:
 
 ```text
 Summarize the most important changes in this data.
@@ -108,7 +109,7 @@ Success looks like this:
 - the plan preview switches to `analysis_then_write`
 - the run shows an analysis block before the final answer
 - `Tool Invocations` includes `local_file_context` and `csv_analysis`
-- the final output references the uploaded dataset
+- the final output references the built-in sample dataset
 
 ## 5. Optional Ollama Follow-Up
 
