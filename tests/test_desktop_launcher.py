@@ -36,6 +36,7 @@ def test_build_flag_options() -> None:
         "server.address": "127.0.0.1",
         "server.port": 8600,
         "browser.gatherUsageStats": False,
+        "global.developmentMode": False,
     }
 
 
@@ -61,6 +62,7 @@ def test_launch_desktop_ui_invokes_streamlit_bootstrap() -> None:
             "server.address": "127.0.0.1",
             "server.port": 8601,
             "browser.gatherUsageStats": False,
+            "global.developmentMode": False,
         }
     ]
     assert len(fake_bootstrap.run_calls) == 1
@@ -98,3 +100,82 @@ def test_launch_desktop_ui_sets_desktop_mode_env(monkeypatch) -> None:
     )
 
     assert os.environ[UI_MODE_ENV_VAR] == UI_MODE_DESKTOP
+
+
+def test_parse_args_supports_smoke_test() -> None:
+    args = desktop_launcher.parse_args(["--smoke-test", "--diagnose-startup"])
+
+    assert args.smoke_test is True
+    assert args.diagnose_startup is True
+
+
+def test_format_missing_dependency_message_mentions_module_name() -> None:
+    exc = ModuleNotFoundError("No module named 'streamlit.web'")
+    exc.name = "streamlit.web"
+
+    message = desktop_launcher._format_missing_dependency_message(exc)
+
+    assert "streamlit.web" in message
+    assert "could not start" in message
+
+
+def test_verify_required_app_modules_reports_missing_bundle_module() -> None:
+    present_modules = set(desktop_launcher.REQUIRED_APP_MODULES) - {"tools.cache"}
+
+    def _fake_module_loader(module_name: str) -> object:
+        if module_name in present_modules:
+            return object()
+        exc = ModuleNotFoundError(f"No module named '{module_name}'")
+        exc.name = module_name
+        raise exc
+
+    try:
+        desktop_launcher._verify_required_app_modules(module_loader=_fake_module_loader)
+    except SystemExit as exc:
+        message = str(exc)
+    else:  # pragma: no cover - defensive assertion path
+        raise AssertionError("Expected SystemExit for a missing packaged module.")
+
+    assert "tools.cache" in message
+    assert "packaged app modules are missing" in message
+
+
+def test_verify_desktop_packaging_ready_checks_bootstrap_and_modules(monkeypatch, tmp_path) -> None:
+    recorded_calls: list[str] = []
+    monkeypatch.setattr(desktop_launcher, "APP_PATH", tmp_path / "app.py")
+    desktop_launcher.APP_PATH.write_text("# smoke test", encoding="utf-8")
+
+    def _fake_bootstrap_loader() -> object:
+        recorded_calls.append("bootstrap")
+        return object()
+
+    def _fake_module_loader(module_name: str) -> object:
+        recorded_calls.append(module_name)
+        return object()
+
+    desktop_launcher.verify_desktop_packaging_ready(
+        bootstrap_loader=_fake_bootstrap_loader,
+        module_loader=_fake_module_loader,
+    )
+
+    assert recorded_calls[0] == "bootstrap"
+    assert recorded_calls[1:] == list(desktop_launcher.REQUIRED_APP_MODULES)
+
+
+def test_main_smoke_test_skips_ui_launch(monkeypatch) -> None:
+    verify_calls: list[str] = []
+    launch_calls: list[str] = []
+
+    def _fake_verify() -> None:
+        verify_calls.append("verified")
+
+    def _fake_launch(*args, **kwargs) -> None:
+        launch_calls.append("launched")
+
+    monkeypatch.setattr(desktop_launcher, "verify_desktop_packaging_ready", _fake_verify)
+    monkeypatch.setattr(desktop_launcher, "launch_desktop_ui", _fake_launch)
+
+    desktop_launcher.main(["--smoke-test"])
+
+    assert verify_calls == ["verified"]
+    assert launch_calls == []

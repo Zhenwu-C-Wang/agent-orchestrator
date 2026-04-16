@@ -48,13 +48,28 @@ mkdir -p "${DIST_DIR}" "${BUILD_DIR}"
 "${PYTHON_BIN}" -m PyInstaller \
   --noconfirm \
   --clean \
+  --debug noarchive \
   --windowed \
   --name "${APP_NAME}" \
   --distpath "${DIST_DIR}" \
   --workpath "${BUILD_DIR}" \
   --specpath "${BUILD_DIR}" \
+  --paths "${ROOT_DIR}" \
+  --hidden-import streamlit \
+  --hidden-import streamlit.web \
+  --hidden-import models \
+  --hidden-import orchestrator \
+  --hidden-import schemas \
+  --hidden-import tools \
+  --hidden-import workers \
+  --copy-metadata streamlit \
   --collect-data streamlit \
   --collect-submodules streamlit \
+  --collect-submodules models \
+  --collect-submodules orchestrator \
+  --collect-submodules schemas \
+  --collect-submodules tools \
+  --collect-submodules workers \
   --add-data "${ROOT_DIR}/app.py:." \
   --add-data "${ROOT_DIR}/docs:docs" \
   "${ROOT_DIR}/desktop_launcher.py"

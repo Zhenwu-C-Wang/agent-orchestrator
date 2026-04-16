@@ -58,5 +58,7 @@ if command -v codesign >/dev/null 2>&1; then
   codesign --verify --deep --strict "${APP_PATH}"
 fi
 
+"${EXECUTABLE_PATH}" --smoke-test
+
 echo "Validated macOS app preview:"
 echo "  ${APP_PATH}"
