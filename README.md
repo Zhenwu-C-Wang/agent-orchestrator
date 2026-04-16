@@ -17,6 +17,7 @@ python main.py "How should I bootstrap a supervisor-worker system?" --runner fak
 ```
 
 For scenario-based walkthroughs, see [docs/quickstart.md](docs/quickstart.md).
+If you prefer a Chinese guide, see [docs/manual_zh.md](docs/manual_zh.md).
 If you are evaluating the project for the first time, start with [docs/beta_quickstart.md](docs/beta_quickstart.md).
 For the current beta support promise, see [docs/beta_support_matrix.md](docs/beta_support_matrix.md).
 For the standard tester prompts and expected workflow paths, see [docs/beta_task_pack.md](docs/beta_task_pack.md).
@@ -347,6 +348,7 @@ This repository should now be understood as a maintained V1 baseline rather than
 ### Beta Trial Docs
 
 - **Recommended first-run guide**: [docs/beta_quickstart.md](docs/beta_quickstart.md)
+- **Chinese usage manual**: [docs/manual_zh.md](docs/manual_zh.md)
 - **One-command beta launcher**: [scripts/start_beta.sh](./scripts/start_beta.sh)
 - **Support matrix**: [docs/beta_support_matrix.md](docs/beta_support_matrix.md)
 - **Standard trial prompts**: [docs/beta_task_pack.md](docs/beta_task_pack.md)
@@ -388,6 +390,7 @@ See [ROADMAP.md](ROADMAP.md) for the current baseline, near-term priorities, and
 - [docs/beta_task_pack.md](./docs/beta_task_pack.md)
 - [docs/known_issues.md](./docs/known_issues.md)
 - [docs/macos_packaging.md](./docs/macos_packaging.md)
+- [docs/manual_zh.md](./docs/manual_zh.md)
 - [docs/quickstart.md](./docs/quickstart.md)
 - [desktop_launcher.py](./desktop_launcher.py)
 - [scripts/build_macos_app.sh](./scripts/build_macos_app.sh)

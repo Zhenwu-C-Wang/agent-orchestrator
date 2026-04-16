@@ -433,6 +433,7 @@ The stabilization backlog should remain subordinate to the three milestone theme
 │   ├── beta_task_pack.md
 │   ├── known_issues.md
 │   ├── macos_packaging.md
+│   ├── manual_zh.md
 │   ├── project_status.json
 │   ├── quickstart.md
 │   └── sample_data/
