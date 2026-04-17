@@ -3,10 +3,21 @@ import subprocess
 import sys
 from pathlib import Path
 
-from orchestrator.acceptance import ACCEPTANCE_QUESTIONS, run_acceptance
+from orchestrator.acceptance import ACCEPTANCE_CASES, ACCEPTANCE_QUESTIONS, run_acceptance
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_acceptance_sample_context_files_resolve_to_existing_bundled_resources() -> None:
+    sample_cases = [case for case in ACCEPTANCE_CASES if case.context_files]
+
+    assert sample_cases
+    for case in sample_cases:
+        for context_file in case.context_files:
+            path = Path(context_file)
+            assert path.is_absolute()
+            assert path.exists()
 
 
 def test_acceptance_dataset_passes_with_fake_runner() -> None:

@@ -82,6 +82,14 @@ bash scripts/validate_macos_app.sh
 
 You can rerun that validation step independently after moving or reusing the bundle.
 
+For a lightweight pre-launch check of the packaged Python entrypoint itself, you can also run:
+
+```bash
+agent-orchestrator-ui --smoke-test
+```
+
+That smoke test now verifies the packaged UI bootstrap, required Python modules, `docs/project_status.json`, and the built-in sample datasets used by the guided starter tasks.
+
 ## DMG Preview Command
 
 If you want a more shareable macOS preview artifact after the `.app` exists, run:

@@ -5,14 +5,15 @@ from dataclasses import dataclass
 from time import perf_counter
 
 from orchestrator.bootstrap import build_supervisor
+from orchestrator.resource_paths import sample_data_path
 from schemas.acceptance_schema import AcceptanceCaseResult, AcceptanceReport
 from schemas.result_schema import WorkflowResult
 from tools.acceptance import AcceptanceLogger
 from tools.errors import AcceptanceFailedError, run_cli
 
-ACCEPTANCE_SAMPLE_CSV = "docs/sample_data/quarterly_metrics.csv"
-ACCEPTANCE_SAMPLE_COMPARISON_CSV = "docs/sample_data/quarterly_metrics_baseline.csv"
-ACCEPTANCE_SAMPLE_JSON = "docs/sample_data/quarterly_metrics.json"
+ACCEPTANCE_SAMPLE_CSV = str(sample_data_path("quarterly_metrics.csv"))
+ACCEPTANCE_SAMPLE_COMPARISON_CSV = str(sample_data_path("quarterly_metrics_baseline.csv"))
+ACCEPTANCE_SAMPLE_JSON = str(sample_data_path("quarterly_metrics.json"))
 
 
 @dataclass(frozen=True)

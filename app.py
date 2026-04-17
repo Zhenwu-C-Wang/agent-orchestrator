@@ -22,6 +22,7 @@ from orchestrator.inspection import (
 )
 from orchestrator.planner import TaskPlanner
 from orchestrator.project_status import load_project_status
+from orchestrator.resource_paths import sample_data_path
 from orchestrator.runtime_paths import UI_MODE_DESKTOP, resolve_ui_runtime_paths
 from schemas.result_schema import WorkflowResult
 from tools.acceptance import AcceptanceStore
@@ -29,11 +30,9 @@ from tools.audit import AuditStore
 from tools.cache import StructuredResultCache
 
 UI_RUNTIME_PATHS = resolve_ui_runtime_paths()
-REPO_ROOT = Path(__file__).resolve().parent
-SAMPLE_DATA_DIR = REPO_ROOT / "docs" / "sample_data"
-SAMPLE_CSV_PATH = str(SAMPLE_DATA_DIR / "quarterly_metrics.csv")
-SAMPLE_JSON_PATH = str(SAMPLE_DATA_DIR / "quarterly_metrics.json")
-SAMPLE_BASELINE_CSV_PATH = str(SAMPLE_DATA_DIR / "quarterly_metrics_baseline.csv")
+SAMPLE_CSV_PATH = str(sample_data_path("quarterly_metrics.csv"))
+SAMPLE_JSON_PATH = str(sample_data_path("quarterly_metrics.json"))
+SAMPLE_BASELINE_CSV_PATH = str(sample_data_path("quarterly_metrics_baseline.csv"))
 DEFAULT_QUESTION = "How should I bootstrap a supervisor-worker agent system?"
 DEFAULT_AUDIT_DIR = UI_RUNTIME_PATHS.audit_dir
 DEFAULT_ACCEPTANCE_REPORT_DIR = UI_RUNTIME_PATHS.acceptance_dir

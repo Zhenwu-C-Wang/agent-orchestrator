@@ -5,6 +5,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, ValidationError
 
+from orchestrator.resource_paths import project_status_path
+
 
 class ProjectStatus(BaseModel):
     current_phase: str
@@ -16,7 +18,7 @@ class ProjectStatus(BaseModel):
 
 
 def default_status_path() -> Path:
-    return Path(__file__).resolve().parents[1] / "docs" / "project_status.json"
+    return project_status_path(anchor_file=__file__)
 
 
 def load_project_status(path: str | Path | None = None) -> ProjectStatus | None:

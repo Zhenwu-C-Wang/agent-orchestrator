@@ -14,6 +14,7 @@ import webbrowser
 from pathlib import Path
 from typing import Any, Callable
 
+from orchestrator.resource_paths import required_ui_resources, resolve_resource_root
 from orchestrator.runtime_paths import UI_MODE_DESKTOP, UI_MODE_ENV_VAR
 
 DEFAULT_HOST = "127.0.0.1"
@@ -33,9 +34,7 @@ REQUIRED_APP_MODULES = (
 
 
 def get_resource_root() -> Path:
-    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        return Path(getattr(sys, "_MEIPASS"))
-    return Path(__file__).resolve().parent
+    return resolve_resource_root(anchor_file=__file__)
 
 
 APP_PATH = get_resource_root() / "app.py"
@@ -183,14 +182,31 @@ def _verify_required_app_modules(
         )
 
 
+def _verify_required_ui_resources(
+    resources: tuple[tuple[str, Path], ...] | None = None,
+) -> None:
+    required_resources = resources or required_ui_resources(anchor_file=__file__)
+    missing_resources = [
+        relative_path for relative_path, resource_path in required_resources if not resource_path.exists()
+    ]
+    if missing_resources:
+        joined_resources = ", ".join(f"`{relative_path}`" for relative_path in missing_resources)
+        raise SystemExit(
+            f"{APP_DISPLAY_NAME} could not start because bundled UI resources are missing: "
+            f"{joined_resources}. Rebuild the desktop app so starter tasks and packaged status views are bundled."
+        )
+
+
 def verify_desktop_packaging_ready(
     bootstrap_loader: Callable[[], Any] = _load_streamlit_bootstrap,
     module_loader: Callable[[str], object] = importlib.import_module,
+    resources: tuple[tuple[str, Path], ...] | None = None,
 ) -> None:
     bootstrap_loader()
     if not APP_PATH.exists():
         raise SystemExit(f"{APP_DISPLAY_NAME} could not find the packaged UI script at {APP_PATH}.")
     _verify_required_app_modules(module_loader=module_loader)
+    _verify_required_ui_resources(resources=resources)
 
 
 def _describe_module_spec(module_name: str) -> dict[str, object]:
@@ -234,6 +250,14 @@ def build_startup_diagnostics() -> dict[str, object]:
         "streamlit_dir": str(streamlit_dir),
         "streamlit_dir_exists": streamlit_dir.exists(),
         "streamlit_dir_entries": streamlit_entries,
+        "required_ui_resources": [
+            {
+                "resource": relative_path,
+                "path": str(resource_path),
+                "exists": resource_path.exists(),
+            }
+            for relative_path, resource_path in required_ui_resources(anchor_file=__file__)
+        ],
         "module_specs": [
             _describe_module_spec("streamlit"),
             _describe_module_spec("streamlit.web"),
@@ -283,6 +307,10 @@ def launch_desktop_ui(
     bootstrap = bootstrap_module or _load_streamlit_bootstrap()
     flags = build_flag_options(host, port)
     os.environ.setdefault(UI_MODE_ENV_VAR, UI_MODE_DESKTOP)
+
+    # Fail fast in packaged mode if the first-run UI resources were not bundled.
+    if getattr(sys, "frozen", False):
+        _verify_required_ui_resources()
 
     if open_browser:
         scheduler = browser_scheduler or _schedule_browser_open

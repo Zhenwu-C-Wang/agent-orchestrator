@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agent-orchestrator"
 version = "0.1.0"
-description = "A supervisor-driven MVP for orchestrating worker agents with fake and Ollama-backed runners."
+description = "A local-first orchestration baseline with bounded workflows, structured outputs, and fake/Ollama runners."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

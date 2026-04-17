@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import desktop_launcher
 from orchestrator.runtime_paths import UI_MODE_DESKTOP, UI_MODE_ENV_VAR
@@ -140,10 +141,39 @@ def test_verify_required_app_modules_reports_missing_bundle_module() -> None:
     assert "packaged app modules are missing" in message
 
 
+def test_verify_required_ui_resources_reports_missing_bundled_resource(tmp_path: Path) -> None:
+    present = tmp_path / "docs" / "project_status.json"
+    present.parent.mkdir(parents=True)
+    present.write_text("{}", encoding="utf-8")
+    missing = tmp_path / "docs" / "sample_data" / "quarterly_metrics.csv"
+
+    try:
+        desktop_launcher._verify_required_ui_resources(
+            resources=(
+                ("docs/project_status.json", present),
+                ("docs/sample_data/quarterly_metrics.csv", missing),
+            )
+        )
+    except SystemExit as exc:
+        message = str(exc)
+    else:  # pragma: no cover - defensive assertion path
+        raise AssertionError("Expected SystemExit for a missing packaged resource.")
+
+    assert "quarterly_metrics.csv" in message
+    assert "bundled UI resources are missing" in message
+
+
 def test_verify_desktop_packaging_ready_checks_bootstrap_and_modules(monkeypatch, tmp_path) -> None:
     recorded_calls: list[str] = []
     monkeypatch.setattr(desktop_launcher, "APP_PATH", tmp_path / "app.py")
     desktop_launcher.APP_PATH.write_text("# smoke test", encoding="utf-8")
+    resources = (
+        ("docs/project_status.json", tmp_path / "docs" / "project_status.json"),
+        ("docs/sample_data/quarterly_metrics.csv", tmp_path / "docs" / "sample_data" / "quarterly_metrics.csv"),
+    )
+    for _, resource_path in resources:
+        resource_path.parent.mkdir(parents=True, exist_ok=True)
+        resource_path.write_text("ok", encoding="utf-8")
 
     def _fake_bootstrap_loader() -> object:
         recorded_calls.append("bootstrap")
@@ -156,10 +186,30 @@ def test_verify_desktop_packaging_ready_checks_bootstrap_and_modules(monkeypatch
     desktop_launcher.verify_desktop_packaging_ready(
         bootstrap_loader=_fake_bootstrap_loader,
         module_loader=_fake_module_loader,
+        resources=resources,
     )
 
     assert recorded_calls[0] == "bootstrap"
     assert recorded_calls[1:] == list(desktop_launcher.REQUIRED_APP_MODULES)
+
+
+def test_launch_desktop_ui_verifies_resources_in_frozen_mode(monkeypatch) -> None:
+    fake_bootstrap = _FakeBootstrap()
+    verify_calls: list[str] = []
+    monkeypatch.setattr(desktop_launcher.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(
+        desktop_launcher,
+        "_verify_required_ui_resources",
+        lambda resources=None: verify_calls.append("checked"),
+    )
+
+    desktop_launcher.launch_desktop_ui(
+        open_browser=False,
+        bootstrap_module=fake_bootstrap,
+    )
+
+    assert verify_calls == ["checked"]
+    assert len(fake_bootstrap.run_calls) == 1
 
 
 def test_main_smoke_test_skips_ui_launch(monkeypatch) -> None:
