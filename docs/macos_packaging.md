@@ -43,6 +43,7 @@ When the UI is launched through the desktop launcher, the app now defaults to th
 
 - audit runs: `~/Library/Application Support/Agent Orchestrator/runs`
 - acceptance reports: `~/Library/Application Support/Agent Orchestrator/acceptance`
+- startup diagnostics: `~/Library/Application Support/Agent Orchestrator/startup-diagnostics.json`
 - cache path if enabled: `~/Library/Caches/Agent Orchestrator/structured-results`
 
 That keeps packaged app data out of the app bundle and out of the repo checkout.
@@ -90,6 +91,8 @@ agent-orchestrator-ui --smoke-test
 
 That smoke test now verifies the packaged UI bootstrap, required Python modules, `docs/project_status.json`, and the built-in sample datasets used by the guided starter tasks.
 
+If you add `--write-diagnostics /path/to/file.json`, the launcher also writes the same startup snapshot to disk.
+
 ## DMG Preview Command
 
 If you want a more shareable macOS preview artifact after the `.app` exists, run:
@@ -122,6 +125,28 @@ That validation step checks:
 - the output is now a local `.app` bundle plus a local `.dmg` preview, but neither is a signed installer
 - notarization, signing, and drag-to-Applications polish are not implemented yet
 - Ollama support in packaged builds is still a later follow-up
+
+## Second-Machine Validation Checklist
+
+Use this checklist when moving from same-machine build validation to a true second-machine launch test.
+
+1. Copy `dist/macos/Agent Orchestrator.dmg` to a second macOS machine that does not have the repo checked out.
+2. Mount the DMG and move `Agent Orchestrator.app` into `/Applications`.
+3. Launch the app once by double-clicking it.
+4. Confirm that the browser opens to the guided UI and that the starter-task screen renders.
+5. Run the default fake-runner quickstart without changing advanced settings.
+6. Confirm that starter tasks still load their bundled sample files and that the run completes.
+7. Check that audit output, acceptance output, and cache paths resolve under `~/Library/Application Support/Agent Orchestrator` or `~/Library/Caches/Agent Orchestrator`.
+8. If launch fails before the UI appears, inspect `~/Library/Application Support/Agent Orchestrator/startup-diagnostics.json`.
+9. If needed, rerun the packaged launcher from Terminal with `--smoke-test` or `--diagnose-startup --write-diagnostics ~/Desktop/agent-orchestrator-startup.json`.
+10. Record whether the machine had Python, Streamlit, or Ollama installed already so we can distinguish bundled failures from environment confusion.
+
+Minimum success criteria for this validation round:
+
+- the app launches without a repo checkout present
+- the guided fake-runner first-run path succeeds
+- the bundled starter tasks can read their built-in sample data
+- any startup failure leaves behind a readable diagnostics file in the desktop support directory
 
 ## What Must Still Happen Before External Non-Technical Testing
 

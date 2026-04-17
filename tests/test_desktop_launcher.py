@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
 import desktop_launcher
-from orchestrator.runtime_paths import UI_MODE_DESKTOP, UI_MODE_ENV_VAR
+from orchestrator.runtime_paths import UIRuntimePaths, UI_MODE_DESKTOP, UI_MODE_ENV_VAR
 
 
 class _FakeBootstrap:
@@ -104,10 +105,44 @@ def test_launch_desktop_ui_sets_desktop_mode_env(monkeypatch) -> None:
 
 
 def test_parse_args_supports_smoke_test() -> None:
-    args = desktop_launcher.parse_args(["--smoke-test", "--diagnose-startup"])
+    args = desktop_launcher.parse_args(
+        ["--smoke-test", "--diagnose-startup", "--write-diagnostics", "/tmp/diag.json"]
+    )
 
     assert args.smoke_test is True
     assert args.diagnose_startup is True
+    assert args.write_diagnostics == "/tmp/diag.json"
+
+
+def test_default_startup_diagnostics_path_uses_desktop_support_root(monkeypatch) -> None:
+    monkeypatch.setattr(
+        desktop_launcher,
+        "resolve_ui_runtime_paths",
+        lambda mode=None: UIRuntimePaths(
+            mode=UI_MODE_DESKTOP,
+            root_dir="/tmp/agent-orchestrator-support",
+            audit_dir="/tmp/agent-orchestrator-support/runs",
+            acceptance_dir="/tmp/agent-orchestrator-support/acceptance",
+            cache_dir="/tmp/agent-orchestrator-cache",
+        ),
+    )
+
+    assert desktop_launcher.default_startup_diagnostics_path() == Path(
+        "/tmp/agent-orchestrator-support/startup-diagnostics.json"
+    )
+
+
+def test_write_startup_diagnostics_persists_json(tmp_path: Path) -> None:
+    target = tmp_path / "startup-diagnostics.json"
+    payload = {"status": "ok"}
+
+    written = desktop_launcher.write_startup_diagnostics(
+        target_path=target,
+        diagnostics=payload,
+    )
+
+    assert written == target
+    assert json.loads(target.read_text(encoding="utf-8")) == payload
 
 
 def test_format_missing_dependency_message_mentions_module_name() -> None:
@@ -210,6 +245,40 @@ def test_launch_desktop_ui_verifies_resources_in_frozen_mode(monkeypatch) -> Non
 
     assert verify_calls == ["checked"]
     assert len(fake_bootstrap.run_calls) == 1
+
+
+def test_main_smoke_test_writes_requested_diagnostics_file(monkeypatch, tmp_path: Path) -> None:
+    target = tmp_path / "diagnostics.json"
+    monkeypatch.setattr(desktop_launcher, "verify_desktop_packaging_ready", lambda: None)
+    monkeypatch.setattr(desktop_launcher, "build_startup_diagnostics", lambda: {"mode": "smoke-test"})
+
+    desktop_launcher.main(["--smoke-test", "--write-diagnostics", str(target)])
+
+    assert json.loads(target.read_text(encoding="utf-8")) == {"mode": "smoke-test"}
+
+
+def test_main_persists_failure_diagnostics_for_frozen_bundle(monkeypatch, tmp_path: Path) -> None:
+    diagnostics_path = tmp_path / "startup-diagnostics.json"
+    handled_messages: list[str] = []
+
+    monkeypatch.setattr(desktop_launcher, "verify_desktop_packaging_ready", lambda: (_ for _ in ()).throw(SystemExit("boom")))
+    monkeypatch.setattr(desktop_launcher, "build_startup_diagnostics", lambda: {"mode": "frozen"})
+    monkeypatch.setattr(desktop_launcher, "default_startup_diagnostics_path", lambda: diagnostics_path)
+    monkeypatch.setattr(desktop_launcher, "_handle_launch_failure", handled_messages.append)
+    monkeypatch.setattr(desktop_launcher.sys, "frozen", True, raising=False)
+
+    try:
+        desktop_launcher.main(["--smoke-test"])
+    except SystemExit as exc:
+        message = str(exc)
+    else:  # pragma: no cover - defensive assertion path
+        raise AssertionError("Expected SystemExit for smoke-test failure.")
+
+    payload = json.loads(diagnostics_path.read_text(encoding="utf-8"))
+    assert payload["mode"] == "frozen"
+    assert payload["startup_error"] == "boom"
+    assert str(diagnostics_path) in message
+    assert handled_messages and str(diagnostics_path) in handled_messages[0]
 
 
 def test_main_smoke_test_skips_ui_launch(monkeypatch) -> None:

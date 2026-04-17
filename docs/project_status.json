@@ -2,7 +2,7 @@
   "current_phase": "Phase 1 (Practical V1)",
   "current_milestone": "M5: Desktop Packaging Readiness",
   "next_milestone": "Second-machine macOS DMG validation",
-  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, a guided Streamlit inspection UI with shareable run/acceptance/cache exports, and beta-facing onboarding docs including a support matrix and task pack. The current push is to bridge the gap between the repo-based technical beta and a future installer-based beta by keeping the guided UI simple, moving desktop-mode runtime data into user-writable app folders, and validating the first locally built macOS app and DMG previews on another machine.",
+  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, a guided Streamlit inspection UI with shareable run/acceptance/cache exports, and beta-facing onboarding docs including a support matrix and task pack. The current push is to bridge the gap between the repo-based technical beta and a future installer-based beta by keeping the guided UI simple, moving desktop-mode runtime data into user-writable app folders, persisting startup diagnostics for packaged-app troubleshooting, and validating the first locally built macOS app and DMG previews on another machine.",
   "completed_items": [
     "Closed-loop supervisor orchestration with research, writing, and optional review stages",
     "Bounded workflow planning that routes between research, analysis, comparison, and hybrid advisory/context requests",
@@ -15,6 +15,7 @@
     "Guided-mode starter tasks that preload beginner-friendly sample workflows in the Streamlit UI",
     "Packaging-friendly desktop launcher entrypoint for future native app bundling",
     "Desktop-mode runtime paths that move persisted UI artifacts into user-writable app locations",
+    "Desktop launcher startup diagnostics that can be written to the desktop support directory for packaged-app troubleshooting",
     "macOS packaging preview doc and build scaffold",
     "First local macOS app-bundle preview built and structurally validated",
     "First local macOS DMG preview built and structurally validated"
@@ -22,6 +23,7 @@
   "next_items": [
     "Launch and validate the built macOS app and DMG previews on a second machine",
     "Verify that desktop-mode first run works without depending on a repo checkout",
+    "Use the packaged-app startup diagnostics plus the second-machine validation checklist to capture external launch failures cleanly",
     "Continue broadening bounded workflow planning and guarded analysis/comparison tools without destabilizing the guided UI"
   ]
 }

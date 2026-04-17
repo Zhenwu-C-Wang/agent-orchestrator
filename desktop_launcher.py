@@ -15,12 +15,17 @@ from pathlib import Path
 from typing import Any, Callable
 
 from orchestrator.resource_paths import required_ui_resources, resolve_resource_root
-from orchestrator.runtime_paths import UI_MODE_DESKTOP, UI_MODE_ENV_VAR
+from orchestrator.runtime_paths import (
+    UI_MODE_DESKTOP,
+    UI_MODE_ENV_VAR,
+    resolve_ui_runtime_paths,
+)
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8501
 DEFAULT_BROWSER_TIMEOUT_SECONDS = 15.0
 APP_DISPLAY_NAME = "Agent Orchestrator"
+STARTUP_DIAGNOSTICS_FILENAME = "startup-diagnostics.json"
 REQUIRED_APP_MODULES = (
     "orchestrator.bootstrap",
     "orchestrator.inspection",
@@ -78,6 +83,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--diagnose-startup",
         action="store_true",
         help="Print startup diagnostics for packaged-app troubleshooting.",
+    )
+    parser.add_argument(
+        "--write-diagnostics",
+        default=None,
+        help=(
+            "Optional path where startup diagnostics should also be written as JSON. "
+            "Packaged failures already write to the desktop support directory by default."
+        ),
     )
     return parser.parse_args(argv)
 
@@ -235,6 +248,7 @@ def _describe_module_spec(module_name: str) -> dict[str, object]:
 def build_startup_diagnostics() -> dict[str, object]:
     resource_root = get_resource_root()
     streamlit_dir = resource_root / "streamlit"
+    runtime_paths = resolve_ui_runtime_paths(mode=UI_MODE_DESKTOP)
     streamlit_entries = []
     if streamlit_dir.exists():
         streamlit_entries = sorted(path.name for path in streamlit_dir.iterdir())[:20]
@@ -246,6 +260,13 @@ def build_startup_diagnostics() -> dict[str, object]:
         "resource_root_exists": resource_root.exists(),
         "app_path": str(APP_PATH),
         "app_path_exists": APP_PATH.exists(),
+        "desktop_runtime_paths": {
+            "root_dir": runtime_paths.root_dir,
+            "audit_dir": runtime_paths.audit_dir,
+            "acceptance_dir": runtime_paths.acceptance_dir,
+            "cache_dir": runtime_paths.cache_dir,
+            "startup_diagnostics_path": str(default_startup_diagnostics_path()),
+        },
         "sys_path": sys.path,
         "streamlit_dir": str(streamlit_dir),
         "streamlit_dir_exists": streamlit_dir.exists(),
@@ -264,6 +285,36 @@ def build_startup_diagnostics() -> dict[str, object]:
             _describe_module_spec("orchestrator.bootstrap"),
         ],
     }
+
+
+def default_startup_diagnostics_path() -> Path:
+    runtime_paths = resolve_ui_runtime_paths(mode=UI_MODE_DESKTOP)
+    return Path(runtime_paths.root_dir) / STARTUP_DIAGNOSTICS_FILENAME
+
+
+def write_startup_diagnostics(
+    *,
+    target_path: str | Path | None = None,
+    diagnostics: dict[str, object] | None = None,
+) -> Path:
+    destination = Path(target_path) if target_path is not None else default_startup_diagnostics_path()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    payload = diagnostics or build_startup_diagnostics()
+    destination.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return destination
+
+
+def _persist_failure_diagnostics(
+    *,
+    error_message: str,
+    target_path: str | Path | None = None,
+) -> Path | None:
+    if not getattr(sys, "frozen", False) and target_path is None:
+        return None
+
+    diagnostics = build_startup_diagnostics()
+    diagnostics["startup_error"] = error_message
+    return write_startup_diagnostics(target_path=target_path, diagnostics=diagnostics)
 
 
 def _show_error_dialog(message: str) -> None:
@@ -324,9 +375,17 @@ def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     try:
         if args.diagnose_startup:
-            print(json.dumps(build_startup_diagnostics(), indent=2))
+            diagnostics = build_startup_diagnostics()
+            print(json.dumps(diagnostics, indent=2))
+            if args.write_diagnostics is not None:
+                write_startup_diagnostics(
+                    target_path=args.write_diagnostics,
+                    diagnostics=diagnostics,
+                )
         if args.smoke_test:
             verify_desktop_packaging_ready()
+            if args.write_diagnostics is not None:
+                write_startup_diagnostics(target_path=args.write_diagnostics)
             return
 
         launch_desktop_ui(
@@ -337,10 +396,28 @@ def main(argv: list[str] | None = None) -> None:
         )
     except SystemExit as exc:
         if exc.code not in (None, 0):
-            _handle_launch_failure(str(exc))
+            diagnostics_path = _persist_failure_diagnostics(
+                error_message=str(exc),
+                target_path=args.write_diagnostics,
+            )
+            if diagnostics_path is not None:
+                message_with_path = (
+                    f"{exc}\nStartup diagnostics were written to: {diagnostics_path}"
+                )
+            else:
+                message_with_path = str(exc)
+            _handle_launch_failure(message_with_path)
+            if diagnostics_path is not None:
+                raise SystemExit(message_with_path)
         raise
     except Exception as exc:  # pragma: no cover - defensive startup path
         message = f"{APP_DISPLAY_NAME} failed to start: {type(exc).__name__}: {exc}"
+        diagnostics_path = _persist_failure_diagnostics(
+            error_message=message,
+            target_path=args.write_diagnostics,
+        )
+        if diagnostics_path is not None:
+            message = f"{message}\nStartup diagnostics were written to: {diagnostics_path}"
         _handle_launch_failure(message)
         raise SystemExit(message) from exc
 
