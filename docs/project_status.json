@@ -2,7 +2,7 @@
   "current_phase": "Phase 1 (Practical V1)",
   "current_milestone": "M5: Desktop Packaging Readiness",
   "next_milestone": "Second-machine macOS DMG validation",
-  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, a guided Streamlit inspection UI with shareable run/acceptance/cache exports, and beta-facing onboarding docs including a support matrix and task pack. The current push is to bridge the gap between the repo-based technical beta and a future installer-based beta by keeping the guided UI simple, moving desktop-mode runtime data into user-writable app folders, persisting startup diagnostics for packaged-app troubleshooting, and validating the first locally built macOS app and DMG previews on another machine.",
+  "summary": "The project now has five bounded workflow templates, tool-backed local file, CSV, JSON, and HTTP context analysis, bounded dataset computation, structured outputs in multiple formats, audit persistence, acceptance coverage, a guided Streamlit inspection UI with shareable run/acceptance/cache exports, and beta-facing onboarding docs including a support matrix and task pack. The current push is to bridge the gap between the repo-based technical beta and a future installer-based beta by keeping the guided UI simple, moving desktop-mode runtime data into user-writable app folders, persisting startup diagnostics for packaged-app troubleshooting, surfacing plain-language Ollama readiness guidance before execution, and validating the first locally built macOS app and DMG previews on another machine.",
   "completed_items": [
     "Closed-loop supervisor orchestration with research, writing, and optional review stages",
     "Bounded workflow planning that routes between research, analysis, comparison, and hybrid advisory/context requests",
@@ -16,6 +16,7 @@
     "Packaging-friendly desktop launcher entrypoint for future native app bundling",
     "Desktop-mode runtime paths that move persisted UI artifacts into user-writable app locations",
     "Desktop launcher startup diagnostics that can be written to the desktop support directory for packaged-app troubleshooting",
+    "Plain-language Ollama readiness checks in the UI so local-model setup problems are surfaced before execution",
     "macOS packaging preview doc and build scaffold",
     "First local macOS app-bundle preview built and structurally validated",
     "First local macOS DMG preview built and structurally validated"

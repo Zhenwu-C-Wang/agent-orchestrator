@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import hashlib
 import json
 import tempfile
+from typing import Callable
 from pathlib import Path
 
 import streamlit as st
 
+from models.ollama_client import OllamaClient
 from orchestrator.bootstrap import build_supervisor, format_markdown, format_pretty
 from orchestrator.inspection import (
     build_acceptance_overview,
@@ -28,6 +31,7 @@ from schemas.result_schema import WorkflowResult
 from tools.acceptance import AcceptanceStore
 from tools.audit import AuditStore
 from tools.cache import StructuredResultCache
+from tools.errors import ModelInvocationError
 
 UI_RUNTIME_PATHS = resolve_ui_runtime_paths()
 SAMPLE_CSV_PATH = str(sample_data_path("quarterly_metrics.csv"))
@@ -104,6 +108,18 @@ STARTER_TASKS: dict[str, dict[str, object]] = {
 }
 
 
+@dataclass(frozen=True)
+class OllamaReadiness:
+    ok: bool
+    reachable: bool
+    configured_model: str
+    available_models: list[str]
+    headline: str
+    summary: str
+    guidance: list[str]
+    error_message: str | None = None
+
+
 def _persist_uploaded_files(uploaded_files: list[object]) -> list[str]:
     if not uploaded_files:
         return []
@@ -144,6 +160,114 @@ def _render_metrics(metrics: list[object]) -> None:
     columns = st.columns(len(metrics))
     for column, metric in zip(columns, metrics):
         column.metric(metric.label, metric.value)
+
+
+def inspect_ollama_readiness(
+    *,
+    base_url: str,
+    model: str,
+    client_factory: Callable[..., OllamaClient] = OllamaClient,
+) -> OllamaReadiness:
+    configured_model = model.strip() or "llama3.1"
+
+    try:
+        available_models = client_factory(base_url=base_url).list_models()
+    except ModelInvocationError as exc:
+        return OllamaReadiness(
+            ok=False,
+            reachable=False,
+            configured_model=configured_model,
+            available_models=[],
+            headline="Ollama is not reachable yet",
+            summary=(
+                f"The app could not connect to Ollama at `{base_url}`. "
+                "Keep the runner on `fake` for the first success path, or start Ollama before retrying."
+            ),
+            guidance=[
+                "Start the Ollama app or background service on this machine.",
+                f"Confirm that `{base_url}` is the correct local Ollama address.",
+                f"After Ollama is running, pull the model you want with `ollama pull {configured_model}`.",
+            ],
+            error_message=(
+                f"Ollama is not reachable at {base_url}. Start the local Ollama app or service first, "
+                f"then retry. If you only want to validate the workflow, switch back to the `fake` runner. "
+                f"Original error: {exc}"
+            ),
+        )
+
+    if not available_models:
+        return OllamaReadiness(
+            ok=False,
+            reachable=True,
+            configured_model=configured_model,
+            available_models=[],
+            headline="Ollama is running, but no models are installed",
+            summary=(
+                "The local Ollama server responded, but it did not report any installed models yet."
+            ),
+            guidance=[
+                f"Install a local model first, for example `ollama pull {configured_model}`.",
+                "If you want the simplest first run, switch back to the `fake` runner and try a starter task.",
+            ],
+            error_message=(
+                f"Ollama is reachable at {base_url}, but no local models are installed yet. "
+                f"Run `ollama pull {configured_model}` first or switch back to the `fake` runner."
+            ),
+        )
+
+    if configured_model not in available_models:
+        available_preview = ", ".join(available_models[:5])
+        return OllamaReadiness(
+            ok=False,
+            reachable=True,
+            configured_model=configured_model,
+            available_models=available_models,
+            headline="Configured Ollama model is not installed",
+            summary=(
+                f"Ollama is running, but the configured model `{configured_model}` is not installed "
+                "on this machine yet."
+            ),
+            guidance=[
+                f"Choose one of the installed models: {available_preview}.",
+                f"Or install the configured model with `ollama pull {configured_model}`.",
+                "Switch back to the `fake` runner if you only want the guided workflow demo.",
+            ],
+            error_message=(
+                f"Ollama is reachable at {base_url}, but model `{configured_model}` is not installed. "
+                f"Installed models: {', '.join(available_models)}. Choose one of those models or run "
+                f"`ollama pull {configured_model}` first."
+            ),
+        )
+
+    return OllamaReadiness(
+        ok=True,
+        reachable=True,
+        configured_model=configured_model,
+        available_models=available_models,
+        headline="Local model path looks ready",
+        summary=(
+            f"Ollama is reachable at `{base_url}` and the configured model `{configured_model}` is installed."
+        ),
+        guidance=[
+            "You can run with Ollama now, but keep the fake runner for the simplest demo and regression checks.",
+            "If this is your first evaluation, compare one starter task on `fake` before judging model quality.",
+        ],
+    )
+
+
+def _render_ollama_readiness(readiness: OllamaReadiness) -> None:
+    st.subheader("Local Model Readiness")
+    if readiness.ok:
+        st.success(readiness.summary)
+    elif readiness.reachable:
+        st.warning(readiness.summary)
+    else:
+        st.error(readiness.summary)
+    st.markdown(f"**{readiness.headline}**")
+    if readiness.available_models:
+        st.write(f"Installed models: `{', '.join(readiness.available_models[:8])}`")
+    for item in readiness.guidance:
+        st.write(f"- {item}")
 
 
 def _render_plan_preview(
@@ -791,6 +915,11 @@ def main() -> None:
     uploaded_file_paths = _persist_uploaded_files(uploaded_context_files)
     context_files = _merge_distinct(starter_context_files, uploaded_file_paths)
     context_urls = _merge_distinct(starter_context_urls, _parse_context_urls(context_urls_raw))
+    ollama_readiness = (
+        inspect_ollama_readiness(base_url=base_url, model=model)
+        if runner_name == "ollama"
+        else None
+    )
 
     left, right = st.columns([1, 1])
     with left:
@@ -817,6 +946,8 @@ def main() -> None:
             st.markdown("**Context URLs In Use**")
             for url in context_urls:
                 st.write(f"- {url}")
+        if ollama_readiness is not None:
+            _render_ollama_readiness(ollama_readiness)
 
     settings_left, settings_right = st.columns([1, 1])
     with settings_left:
@@ -856,6 +987,8 @@ def main() -> None:
         st.session_state["last_error"] = None
         st.session_state["last_result"] = None
         try:
+            if runner_name == "ollama" and ollama_readiness is not None and not ollama_readiness.ok:
+                raise ModelInvocationError(ollama_readiness.error_message or ollama_readiness.summary)
             supervisor = build_supervisor(
                 runner_name=runner_name,
                 model=model,

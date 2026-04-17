@@ -152,5 +152,5 @@ Minimum success criteria for this validation round:
 
 - validate that the generated `.app` and `.dmg` launch cleanly on a second macOS machine
 - verify that the first-run path works without the repo present on disk
-- add plain-language failure handling around missing local model support
+- confirm that the packaged UI's Ollama readiness warnings are clear enough for a beginner who switches away from the fake runner
 - decide whether the first non-technical release should remain a `.dmg` or move to a more polished signed distribution flow
