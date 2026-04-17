@@ -13,8 +13,11 @@ from orchestrator.inspection import (
     build_cache_export_payload,
     build_plan_guidance,
     build_result_overview,
+    build_support_overview,
+    build_support_export_payload,
     format_acceptance_export_markdown,
     format_cache_export_markdown,
+    format_support_export_markdown,
 )
 from orchestrator.planner import TaskPlanner
 from tools.acceptance import AcceptanceLogger, AcceptanceStore
@@ -341,3 +344,83 @@ def test_cache_export_payload_and_markdown_include_selected_entry(tmp_path) -> N
     assert payload["selected_entry_detail"]["headline"] == "Cache Entry Detail"
     assert "## Selected Entry" in markdown
     assert entry.cache_key in markdown
+
+
+def test_support_export_payload_and_markdown_include_runtime_and_diagnostics() -> None:
+    runtime_paths = {
+        "root_dir": "/Users/tester/Library/Application Support/Agent Orchestrator",
+        "audit_dir": "/Users/tester/Library/Application Support/Agent Orchestrator/runs",
+        "acceptance_dir": "/Users/tester/Library/Application Support/Agent Orchestrator/acceptance",
+        "startup_diagnostics_path": "/Users/tester/Library/Application Support/Agent Orchestrator/startup-diagnostics.json",
+        "cache_dir": "/Users/tester/Library/Caches/Agent Orchestrator/structured-results",
+    }
+    startup_diagnostics = {
+        "frozen": True,
+        "resource_root_exists": True,
+        "app_path_exists": True,
+        "startup_error": "missing resource",
+    }
+    recent_runs = [
+        {
+            "run_id": "run-1",
+            "status": "completed",
+            "workflow_name": "analysis_then_write",
+        }
+    ]
+    recent_acceptance_runs = [
+        {
+            "run_id": "acceptance-1",
+            "status": "passed",
+            "passed_cases": 10,
+            "total_cases": 10,
+        }
+    ]
+    cache_summary = {
+        "total_entries": 4,
+        "active_entries": 3,
+        "expired_entries": 1,
+    }
+    recent_cache_entries = [
+        {
+            "created_at": "2026-04-17T00:00:00+00:00",
+            "task_type": "research",
+            "response_model": "ResearchResult",
+        }
+    ]
+
+    overview = build_support_overview(
+        ui_mode="desktop",
+        runtime_paths=runtime_paths,
+        startup_diagnostics=startup_diagnostics,
+        recent_runs=recent_runs,
+        recent_acceptance_runs=recent_acceptance_runs,
+        cache_summary=cache_summary,
+    )
+    payload = build_support_export_payload(
+        ui_mode="desktop",
+        runtime_paths=runtime_paths,
+        project_status={"current_phase": "Phase 1", "current_milestone": "M5", "next_milestone": "M6"},
+        startup_diagnostics=startup_diagnostics,
+        recent_runs=recent_runs,
+        recent_acceptance_runs=recent_acceptance_runs,
+        cache_summary=cache_summary,
+        recent_cache_entries=recent_cache_entries,
+    )
+    markdown = format_support_export_markdown(
+        ui_mode="desktop",
+        runtime_paths=runtime_paths,
+        project_status={"current_phase": "Phase 1", "current_milestone": "M5", "next_milestone": "M6"},
+        startup_diagnostics=startup_diagnostics,
+        recent_runs=recent_runs,
+        recent_acceptance_runs=recent_acceptance_runs,
+        cache_summary=cache_summary,
+        recent_cache_entries=recent_cache_entries,
+    )
+
+    assert overview.headline == "Support Snapshot"
+    assert any(metric.label == "Runs" and metric.value == "1" for metric in overview.metrics)
+    assert any("captured an error" in warning.lower() for warning in overview.warnings)
+    assert payload["overview"]["headline"] == "Support Snapshot"
+    assert payload["startup_diagnostics"]["startup_error"] == "missing resource"
+    assert "## Runtime Paths" in markdown
+    assert "## Startup Diagnostics" in markdown

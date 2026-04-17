@@ -123,6 +123,7 @@ def test_default_startup_diagnostics_path_uses_desktop_support_root(monkeypatch)
             root_dir="/tmp/agent-orchestrator-support",
             audit_dir="/tmp/agent-orchestrator-support/runs",
             acceptance_dir="/tmp/agent-orchestrator-support/acceptance",
+            startup_diagnostics_path="/tmp/agent-orchestrator-support/startup-diagnostics.json",
             cache_dir="/tmp/agent-orchestrator-cache",
         ),
     )

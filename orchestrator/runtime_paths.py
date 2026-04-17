@@ -19,6 +19,7 @@ class UIRuntimePaths:
     root_dir: str
     audit_dir: str
     acceptance_dir: str
+    startup_diagnostics_path: str
     cache_dir: str
 
 
@@ -74,6 +75,7 @@ def resolve_ui_runtime_paths(
             root_dir=str(support_root),
             audit_dir=str(support_root / "runs"),
             acceptance_dir=str(support_root / "acceptance"),
+            startup_diagnostics_path=str(support_root / "startup-diagnostics.json"),
             cache_dir=str(cache_root / "structured-results"),
         )
 
@@ -82,5 +84,6 @@ def resolve_ui_runtime_paths(
         root_dir="artifacts",
         audit_dir="artifacts/runs",
         acceptance_dir="artifacts/acceptance",
+        startup_diagnostics_path="artifacts/startup-diagnostics.json",
         cache_dir="",
     )

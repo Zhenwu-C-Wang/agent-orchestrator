@@ -171,6 +171,8 @@ Please report:
 - the most useful part of the experience
 - whether you tried Ollama, and if so which model
 
+If you used the UI, open the `Support` tab and export the `Support Snapshot` before filing feedback. That snapshot now bundles the runtime paths, recent persisted artifacts, cache summary, and any available startup diagnostics into one shareable report.
+
 If you are filing feedback in GitHub, use the beta feedback template in `.github/ISSUE_TEMPLATE/beta_feedback.md`.
 
 ## 8. If You Get Stuck

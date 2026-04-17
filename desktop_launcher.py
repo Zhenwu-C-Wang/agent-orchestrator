@@ -289,7 +289,7 @@ def build_startup_diagnostics() -> dict[str, object]:
 
 def default_startup_diagnostics_path() -> Path:
     runtime_paths = resolve_ui_runtime_paths(mode=UI_MODE_DESKTOP)
-    return Path(runtime_paths.root_dir) / STARTUP_DIAGNOSTICS_FILENAME
+    return Path(runtime_paths.startup_diagnostics_path)
 
 
 def write_startup_diagnostics(

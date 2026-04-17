@@ -20,8 +20,11 @@ from orchestrator.inspection import (
     build_cache_export_payload,
     build_plan_guidance,
     build_result_overview,
+    build_support_export_payload,
+    build_support_overview,
     format_acceptance_export_markdown,
     format_cache_export_markdown,
+    format_support_export_markdown,
 )
 from orchestrator.planner import TaskPlanner
 from orchestrator.project_status import load_project_status
@@ -140,6 +143,19 @@ def _persist_uploaded_files(uploaded_files: list[object]) -> list[str]:
 
 def _parse_context_urls(raw_value: str) -> list[str]:
     return [line.strip() for line in raw_value.splitlines() if line.strip()]
+
+
+def _load_json_payload(path: str) -> dict[str, object] | None:
+    target = Path(path)
+    if not target.exists():
+        return None
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
 
 
 def _merge_distinct(items: list[str], extras: list[str]) -> list[str]:
@@ -806,6 +822,103 @@ def _render_cache_snapshot(cache_dir: str, cache_max_age_seconds: float | None) 
     )
 
 
+def _render_support_snapshot(
+    *,
+    ui_mode: str,
+    runtime_paths: dict[str, str],
+    project_status: dict[str, object] | None,
+    audit_dir: str,
+    acceptance_report_dir: str,
+    cache_dir: str,
+    cache_max_age_seconds: float | None,
+) -> None:
+    st.subheader("Support Snapshot")
+    startup_diagnostics = _load_json_payload(runtime_paths["startup_diagnostics_path"])
+
+    recent_runs: list[dict[str, object]] = []
+    if audit_dir:
+        recent_runs = [
+            AuditStore(audit_dir).summarize_record(record)
+            for record in AuditStore(audit_dir).list_records(limit=5)
+        ]
+
+    recent_acceptance_runs: list[dict[str, object]] = []
+    if acceptance_report_dir:
+        recent_acceptance_runs = [
+            AcceptanceStore(acceptance_report_dir).summarize_record(record)
+            for record in AcceptanceStore(acceptance_report_dir).list_records(limit=5)
+        ]
+
+    cache_summary: dict[str, object] | None = None
+    recent_cache_entries: list[dict[str, object]] = []
+    if cache_dir:
+        cache = StructuredResultCache(
+            cache_dir,
+            max_age_seconds=cache_max_age_seconds,
+        )
+        cache_summary = cache.summarize_cache()
+        recent_cache_entries = [
+            cache.summarize_entry(entry)
+            for entry in cache.list_entries(limit=5)
+        ]
+
+    overview = build_support_overview(
+        ui_mode=ui_mode,
+        runtime_paths=runtime_paths,
+        startup_diagnostics=startup_diagnostics,
+        recent_runs=recent_runs,
+        recent_acceptance_runs=recent_acceptance_runs,
+        cache_summary=cache_summary,
+    )
+
+    st.markdown(f"**{overview.headline}**")
+    st.caption(overview.summary)
+    _render_metrics(overview.metrics)
+    if overview.highlights:
+        st.markdown("**Highlights**")
+        for item in overview.highlights:
+            st.write(f"- {item}")
+    if overview.warnings:
+        st.markdown("**Warnings**")
+        for item in overview.warnings:
+            st.warning(item)
+    if overview.next_actions:
+        st.markdown("**Next Actions**")
+        for item in overview.next_actions:
+            st.write(f"- {item}")
+    if overview.path_rows:
+        st.markdown("**Runtime Paths**")
+        st.dataframe(overview.path_rows, use_container_width=True, hide_index=True)
+    if startup_diagnostics is not None:
+        with st.expander("Startup Diagnostics JSON"):
+            st.json(startup_diagnostics)
+
+    _render_export_buttons(
+        label_prefix="Support Snapshot",
+        payload=build_support_export_payload(
+            ui_mode=ui_mode,
+            runtime_paths=runtime_paths,
+            project_status=project_status,
+            startup_diagnostics=startup_diagnostics,
+            recent_runs=recent_runs,
+            recent_acceptance_runs=recent_acceptance_runs,
+            cache_summary=cache_summary,
+            recent_cache_entries=recent_cache_entries,
+        ),
+        markdown_output=format_support_export_markdown(
+            ui_mode=ui_mode,
+            runtime_paths=runtime_paths,
+            project_status=project_status,
+            startup_diagnostics=startup_diagnostics,
+            recent_runs=recent_runs,
+            recent_acceptance_runs=recent_acceptance_runs,
+            cache_summary=cache_summary,
+            recent_cache_entries=recent_cache_entries,
+        ),
+        base_filename="support-snapshot",
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="Agent Orchestrator", layout="wide")
     st.title("Agent Orchestrator")
@@ -897,6 +1010,7 @@ def main() -> None:
         _render_starter_task_guide(starter_name, starter_task, guided_mode)
     with top_right:
         _render_project_status()
+    project_status_payload = load_project_status()
 
     question = st.text_area("Task Input", key="task_input", height=140)
 
@@ -963,7 +1077,7 @@ def main() -> None:
         st.write(f"Acceptance report dir: `{acceptance_report_dir or 'disabled'}`")
         st.write(f"Cache dir: `{cache_dir or 'disabled'}`")
     with settings_right:
-        runs_tab, acceptance_tab, cache_tab = st.tabs(["Runs", "Acceptance", "Cache"])
+        runs_tab, acceptance_tab, cache_tab, support_tab = st.tabs(["Runs", "Acceptance", "Cache", "Support"])
         with runs_tab:
             if audit_dir:
                 _render_recent_runs(audit_dir)
@@ -982,6 +1096,26 @@ def main() -> None:
             else:
                 st.subheader("Cache Health")
                 st.info("Set a cache directory to inspect local cache health.")
+        with support_tab:
+            _render_support_snapshot(
+                ui_mode=UI_RUNTIME_PATHS.mode,
+                runtime_paths={
+                    "root_dir": UI_RUNTIME_PATHS.root_dir,
+                    "audit_dir": audit_dir or "",
+                    "acceptance_dir": acceptance_report_dir or "",
+                    "startup_diagnostics_path": UI_RUNTIME_PATHS.startup_diagnostics_path,
+                    "cache_dir": cache_dir or "",
+                },
+                project_status=(
+                    project_status_payload.model_dump(mode="json")
+                    if project_status_payload is not None
+                    else None
+                ),
+                audit_dir=audit_dir,
+                acceptance_report_dir=acceptance_report_dir,
+                cache_dir=cache_dir,
+                cache_max_age_seconds=float(cache_max_age_seconds) if cache_dir else None,
+            )
 
     if st.button("Run Workflow", type="primary", use_container_width=True):
         st.session_state["last_error"] = None

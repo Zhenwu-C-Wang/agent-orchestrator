@@ -146,5 +146,7 @@ When reporting a problem, please include:
 - the exact task you attempted
 - what you expected
 - what actually happened
+- the UI `Support Snapshot` export if you used the Streamlit UI
+- `startup-diagnostics.json` if the packaged desktop app failed before the main UI loaded
 
 If you are filing an issue in GitHub, use the beta feedback template when possible.

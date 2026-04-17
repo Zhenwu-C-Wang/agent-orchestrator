@@ -36,4 +36,7 @@ Describe the part of the experience that felt most useful.
 
 ## Reproduction Details
 
-List any commands, screenshots, logs, or extra notes that would help reproduce the issue.
+List any commands, screenshots, logs, support snapshots, or extra notes that would help reproduce the issue.
+
+- If you used the UI, attach the exported `Support Snapshot` JSON or Markdown when possible.
+- If the packaged desktop app failed before the UI finished loading, attach `startup-diagnostics.json` if it exists.

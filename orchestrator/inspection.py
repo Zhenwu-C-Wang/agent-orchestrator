@@ -90,6 +90,17 @@ class CacheEntryDetail:
     response_preview: str | None = None
 
 
+@dataclass(frozen=True)
+class SupportOverview:
+    headline: str
+    summary: str
+    metrics: list[InspectionMetric] = field(default_factory=list)
+    highlights: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    next_actions: list[str] = field(default_factory=list)
+    path_rows: list[dict[str, str]] = field(default_factory=list)
+
+
 def build_plan_guidance(plan: WorkflowPlan, *, question: str) -> PlanGuidance:
     metadata = plan.metadata
     explicit_file_count = int(metadata.get("context_file_count", 0))
@@ -542,6 +553,97 @@ def build_cache_entry_detail(
     )
 
 
+def build_support_overview(
+    *,
+    ui_mode: str,
+    runtime_paths: dict[str, str],
+    startup_diagnostics: dict[str, Any] | None,
+    recent_runs: list[dict[str, Any]],
+    recent_acceptance_runs: list[dict[str, Any]],
+    cache_summary: dict[str, Any] | None,
+) -> SupportOverview:
+    cache_total = (
+        str(cache_summary.get("total_entries", 0))
+        if cache_summary is not None
+        else "n/a"
+    )
+    metrics = [
+        InspectionMetric("Mode", ui_mode),
+        InspectionMetric("Runs", str(len(recent_runs))),
+        InspectionMetric("Acceptance", str(len(recent_acceptance_runs))),
+        InspectionMetric("Cache", cache_total),
+    ]
+
+    highlights = [
+        f"Runtime root is `{runtime_paths.get('root_dir', 'n/a')}`.",
+        (
+            "Startup diagnostics are available."
+            if startup_diagnostics is not None
+            else "No startup diagnostics snapshot is available yet."
+        ),
+    ]
+    if recent_runs:
+        latest_run = recent_runs[0]
+        highlights.append(
+            f"Latest persisted run: {latest_run.get('run_id', 'n/a')} | {latest_run.get('status', 'n/a')}."
+        )
+    if recent_acceptance_runs:
+        latest_report = recent_acceptance_runs[0]
+        highlights.append(
+            f"Latest acceptance report: {latest_report.get('run_id', 'n/a')} | {latest_report.get('status', 'n/a')}."
+        )
+    if cache_summary is not None:
+        highlights.append(
+            f"Cache summary: {cache_summary.get('active_entries', 0)} active and {cache_summary.get('expired_entries', 0)} expired entries."
+        )
+
+    warnings: list[str] = []
+    if startup_diagnostics is None:
+        warnings.append(
+            "No startup diagnostics file is present yet. That is normal until a packaged startup failure occurs or diagnostics are written explicitly."
+        )
+    elif startup_diagnostics.get("startup_error"):
+        warnings.append(
+            f"Startup diagnostics captured an error: {startup_diagnostics['startup_error']}"
+        )
+    if not recent_runs and not recent_acceptance_runs:
+        warnings.append(
+            "No persisted runs or acceptance reports are available yet, so this snapshot has limited troubleshooting history."
+        )
+    if cache_summary is not None and cache_summary.get("expired_entries", 0):
+        warnings.append(
+            "Expired cache entries are present. Prune them if you want a cleaner support snapshot."
+        )
+
+    next_actions = [
+        "Download this support snapshot and attach it when reporting setup or packaging issues.",
+    ]
+    if ui_mode == "desktop":
+        next_actions.append(
+            "For second-machine validation, include whether the app launched without a repo checkout and whether the fake-runner starter task succeeded."
+        )
+    if startup_diagnostics is not None:
+        next_actions.append(
+            "Include the startup diagnostics file if the app failed before the main UI finished loading."
+        )
+
+    path_rows = [
+        {"path_type": key, "path": value}
+        for key, value in runtime_paths.items()
+        if value
+    ]
+
+    return SupportOverview(
+        headline="Support Snapshot",
+        summary="This snapshot gathers the local support paths, recent persisted artifacts, cache health, and startup diagnostics that are most useful during beta troubleshooting.",
+        metrics=metrics,
+        highlights=highlights,
+        warnings=warnings,
+        next_actions=_dedupe_preserve_order(next_actions),
+        path_rows=path_rows,
+    )
+
+
 def build_acceptance_export_payload(
     record: AcceptanceRecord,
     *,
@@ -571,6 +673,44 @@ def build_acceptance_export_payload(
         )
     if selected_case_comparison is not None:
         payload["selected_case_comparison"] = selected_case_comparison.model_dump(mode="json")
+    return payload
+
+
+def build_support_export_payload(
+    *,
+    ui_mode: str,
+    runtime_paths: dict[str, str],
+    project_status: dict[str, Any] | None,
+    startup_diagnostics: dict[str, Any] | None,
+    recent_runs: list[dict[str, Any]],
+    recent_acceptance_runs: list[dict[str, Any]],
+    cache_summary: dict[str, Any] | None,
+    recent_cache_entries: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "ui_mode": ui_mode,
+        "runtime_paths": runtime_paths,
+        "overview": _serialize_dataclass(
+            build_support_overview(
+                ui_mode=ui_mode,
+                runtime_paths=runtime_paths,
+                startup_diagnostics=startup_diagnostics,
+                recent_runs=recent_runs,
+                recent_acceptance_runs=recent_acceptance_runs,
+                cache_summary=cache_summary,
+            )
+        ),
+        "recent_runs": recent_runs,
+        "recent_acceptance_runs": recent_acceptance_runs,
+    }
+    if project_status is not None:
+        payload["project_status"] = project_status
+    if startup_diagnostics is not None:
+        payload["startup_diagnostics"] = startup_diagnostics
+    if cache_summary is not None:
+        payload["cache_summary"] = cache_summary
+    if recent_cache_entries:
+        payload["recent_cache_entries"] = recent_cache_entries
     return payload
 
 
@@ -671,6 +811,101 @@ def format_acceptance_export_markdown(
                     "",
                 ]
             )
+    return "\n".join(lines).rstrip()
+
+
+def format_support_export_markdown(
+    *,
+    ui_mode: str,
+    runtime_paths: dict[str, str],
+    project_status: dict[str, Any] | None,
+    startup_diagnostics: dict[str, Any] | None,
+    recent_runs: list[dict[str, Any]],
+    recent_acceptance_runs: list[dict[str, Any]],
+    cache_summary: dict[str, Any] | None,
+    recent_cache_entries: list[dict[str, Any]] | None = None,
+) -> str:
+    overview = build_support_overview(
+        ui_mode=ui_mode,
+        runtime_paths=runtime_paths,
+        startup_diagnostics=startup_diagnostics,
+        recent_runs=recent_runs,
+        recent_acceptance_runs=recent_acceptance_runs,
+        cache_summary=cache_summary,
+    )
+    lines = [
+        "# Support Snapshot",
+        "",
+        overview.summary,
+        "",
+    ]
+    _extend_markdown_metrics(lines, overview.metrics)
+    _extend_markdown_list(lines, "Highlights", overview.highlights, level=2)
+    _extend_markdown_list(lines, "Warnings", overview.warnings, level=2)
+    _extend_markdown_list(lines, "Next Actions", overview.next_actions, level=2)
+    if overview.path_rows:
+        lines.extend(["## Runtime Paths", ""])
+        lines.extend(
+            f"- {row['path_type']}: `{row['path']}`"
+            for row in overview.path_rows
+        )
+        lines.append("")
+    if project_status is not None:
+        lines.extend(
+            [
+                "## Project Status",
+                "",
+                f"- Current Phase: `{project_status.get('current_phase', 'n/a')}`",
+                f"- Current Milestone: `{project_status.get('current_milestone', 'n/a')}`",
+                f"- Next Milestone: `{project_status.get('next_milestone', 'n/a')}`",
+                "",
+            ]
+        )
+    if recent_runs:
+        lines.extend(["## Recent Runs", ""])
+        lines.extend(
+            f"- {row.get('run_id', 'n/a')} | {row.get('status', 'n/a')} | {row.get('workflow_name', 'n/a')}"
+            for row in recent_runs
+        )
+        lines.append("")
+    if recent_acceptance_runs:
+        lines.extend(["## Recent Acceptance Runs", ""])
+        lines.extend(
+            f"- {row.get('run_id', 'n/a')} | {row.get('status', 'n/a')} | passed={row.get('passed_cases', 'n/a')}/{row.get('total_cases', 'n/a')}"
+            for row in recent_acceptance_runs
+        )
+        lines.append("")
+    if cache_summary is not None:
+        lines.extend(
+            [
+                "## Cache Summary",
+                "",
+                f"- Total Entries: `{cache_summary.get('total_entries', 0)}`",
+                f"- Active Entries: `{cache_summary.get('active_entries', 0)}`",
+                f"- Expired Entries: `{cache_summary.get('expired_entries', 0)}`",
+                "",
+            ]
+        )
+    if recent_cache_entries:
+        lines.extend(["## Recent Cache Entries", ""])
+        lines.extend(
+            f"- {row.get('created_at', 'n/a')} | {row.get('task_type', 'n/a')} | {row.get('response_model', 'n/a')}"
+            for row in recent_cache_entries
+        )
+        lines.append("")
+    if startup_diagnostics is not None:
+        lines.extend(
+            [
+                "## Startup Diagnostics",
+                "",
+                f"- Frozen: `{startup_diagnostics.get('frozen')}`",
+                f"- Resource Root Exists: `{startup_diagnostics.get('resource_root_exists')}`",
+                f"- App Path Exists: `{startup_diagnostics.get('app_path_exists')}`",
+            ]
+        )
+        if startup_diagnostics.get("startup_error"):
+            lines.append(f"- Startup Error: {startup_diagnostics['startup_error']}")
+        lines.append("")
     return "\n".join(lines).rstrip()
 
 
