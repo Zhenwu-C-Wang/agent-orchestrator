@@ -4,7 +4,7 @@ A supervisor-driven multi-agent system where a central orchestrator decomposes t
 ## Status
 This repository now contains a practical local-first orchestration framework with bounded workflow planning across research, analysis, comparison, and hybrid advisory/context paths, tool-backed local and HTTP context analysis, bounded dataset computation, structured outputs, audit persistence, and a guided Streamlit console.
 The default runner is deterministic for tests and demos, and the same orchestration contract can be switched to Ollama for local model execution.
-The repo now also includes a packaging-friendly desktop launcher entrypoint for future installer builds, but true no-terminal installer distribution is still a separate milestone rather than a shipped surface today.
+The repo now also includes a packaging-friendly desktop launcher entrypoint plus packaged first-run smoke tests for future installer builds, but true no-terminal installer distribution is still a separate milestone rather than a shipped surface today.
 
 ## Quickstart
 

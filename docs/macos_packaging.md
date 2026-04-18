@@ -19,6 +19,7 @@ This document defines the first installer-oriented packaging target for the proj
 
 - a packaging-friendly launcher entrypoint: `agent-orchestrator-ui`
 - desktop-mode runtime paths that move audit and acceptance artifacts out of the repo and into normal user locations
+- a packaged workflow smoke-test path that runs built-in fake-runner starter flows without depending on a repo checkout
 - a macOS build scaffold script: `scripts/build_macos_app.sh`
 - a post-build validation script: `scripts/validate_macos_app.sh`
 - a DMG build script: `scripts/build_macos_dmg.sh`
@@ -35,6 +36,7 @@ Current state:
 - local `.app` bundle generation works
 - local `.dmg` generation works
 - packaged resources include `app.py`, `docs/project_status.json`, and the built-in sample datasets
+- packaged smoke tests can now validate both the default fake-runner research path and the bundled CSV starter-task path, including audit persistence under the desktop support directory
 - the next meaningful validation step is a second-machine launch check, not another same-machine build
 
 ## Desktop Runtime Paths On macOS
@@ -91,7 +93,21 @@ agent-orchestrator-ui --smoke-test
 
 That smoke test now verifies the packaged UI bootstrap, required Python modules, `docs/project_status.json`, and the built-in sample datasets used by the guided starter tasks.
 
-If you add `--write-diagnostics /path/to/file.json`, the launcher also writes the same startup snapshot to disk.
+For a deeper packaged first-run check that actually runs the built-in fake-runner starter flows, use:
+
+```bash
+agent-orchestrator-ui --workflow-smoke-test
+```
+
+That workflow smoke test validates:
+
+- the default research quickstart still completes inside the packaged launcher
+- the bundled CSV starter task can still load packaged sample data and trigger the expected tool chain
+- audit artifacts are written to the desktop support directory rather than the repo
+
+If you add `--write-diagnostics /path/to/file.json`, the launcher writes a JSON snapshot that includes the workflow smoke-test report as well.
+
+`scripts/validate_macos_app.sh` now runs both the structural `--smoke-test` and the deeper `--workflow-smoke-test`.
 
 ## DMG Preview Command
 
@@ -138,7 +154,7 @@ Use this checklist when moving from same-machine build validation to a true seco
 6. Confirm that starter tasks still load their bundled sample files and that the run completes.
 7. Check that audit output, acceptance output, and cache paths resolve under `~/Library/Application Support/Agent Orchestrator` or `~/Library/Caches/Agent Orchestrator`.
 8. If launch fails before the UI appears, inspect `~/Library/Application Support/Agent Orchestrator/startup-diagnostics.json`.
-9. If needed, rerun the packaged launcher from Terminal with `--smoke-test` or `--diagnose-startup --write-diagnostics ~/Desktop/agent-orchestrator-startup.json`.
+9. If needed, rerun the packaged launcher from Terminal with `--smoke-test`, `--workflow-smoke-test --write-diagnostics ~/Desktop/agent-orchestrator-self-test.json`, or `--diagnose-startup --write-diagnostics ~/Desktop/agent-orchestrator-startup.json`.
 10. Record whether the machine had Python, Streamlit, or Ollama installed already so we can distinguish bundled failures from environment confusion.
 
 Minimum success criteria for this validation round:

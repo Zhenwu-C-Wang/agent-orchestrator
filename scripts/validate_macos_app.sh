@@ -59,6 +59,7 @@ if command -v codesign >/dev/null 2>&1; then
 fi
 
 "${EXECUTABLE_PATH}" --smoke-test
+"${EXECUTABLE_PATH}" --workflow-smoke-test
 
 echo "Validated macOS app preview:"
 echo "  ${APP_PATH}"

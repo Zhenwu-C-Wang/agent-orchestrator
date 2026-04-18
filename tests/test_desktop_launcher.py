@@ -42,6 +42,11 @@ def test_build_flag_options() -> None:
     }
 
 
+def test_get_resource_root_uses_repo_root() -> None:
+    assert desktop_launcher.get_resource_root() == Path(__file__).resolve().parents[1]
+    assert desktop_launcher.APP_PATH == desktop_launcher.get_resource_root() / "app.py"
+
+
 def test_launch_desktop_ui_invokes_streamlit_bootstrap() -> None:
     fake_bootstrap = _FakeBootstrap()
     scheduled_calls: list[tuple[str, int, float]] = []
@@ -106,10 +111,17 @@ def test_launch_desktop_ui_sets_desktop_mode_env(monkeypatch) -> None:
 
 def test_parse_args_supports_smoke_test() -> None:
     args = desktop_launcher.parse_args(
-        ["--smoke-test", "--diagnose-startup", "--write-diagnostics", "/tmp/diag.json"]
+        [
+            "--smoke-test",
+            "--workflow-smoke-test",
+            "--diagnose-startup",
+            "--write-diagnostics",
+            "/tmp/diag.json",
+        ]
     )
 
     assert args.smoke_test is True
+    assert args.workflow_smoke_test is True
     assert args.diagnose_startup is True
     assert args.write_diagnostics == "/tmp/diag.json"
 
@@ -229,6 +241,43 @@ def test_verify_desktop_packaging_ready_checks_bootstrap_and_modules(monkeypatch
     assert recorded_calls[1:] == list(desktop_launcher.REQUIRED_APP_MODULES)
 
 
+def test_run_packaged_workflow_smoke_tests_executes_fake_runner(monkeypatch, tmp_path: Path) -> None:
+    runtime_paths = UIRuntimePaths(
+        mode=UI_MODE_DESKTOP,
+        root_dir=str(tmp_path / "support"),
+        audit_dir=str(tmp_path / "support" / "runs"),
+        acceptance_dir=str(tmp_path / "support" / "acceptance"),
+        startup_diagnostics_path=str(tmp_path / "support" / "startup-diagnostics.json"),
+        cache_dir=str(tmp_path / "cache"),
+    )
+    monkeypatch.setattr(
+        desktop_launcher,
+        "resolve_ui_runtime_paths",
+        lambda mode=None: runtime_paths,
+    )
+    monkeypatch.delenv(UI_MODE_ENV_VAR, raising=False)
+
+    report = desktop_launcher.run_packaged_workflow_smoke_tests()
+
+    assert os.environ[UI_MODE_ENV_VAR] == UI_MODE_DESKTOP
+    assert report["status"] == "completed"
+    assert report["runner"] == "fake"
+    assert report["audit_records_written"] >= len(desktop_launcher.WORKFLOW_SMOKE_TEST_CASES)
+    assert [case["workflow_name"] for case in report["cases"]] == [
+        "research_then_write",
+        "analysis_then_write",
+    ]
+    assert report["cases"][0]["tool_names"] == []
+    assert report["cases"][1]["tool_names"] == [
+        "local_file_context",
+        "csv_analysis",
+        "data_computation",
+    ]
+    assert len(list((tmp_path / "support" / "runs").glob("*.json"))) >= len(
+        desktop_launcher.WORKFLOW_SMOKE_TEST_CASES
+    )
+
+
 def test_launch_desktop_ui_verifies_resources_in_frozen_mode(monkeypatch) -> None:
     fake_bootstrap = _FakeBootstrap()
     verify_calls: list[str] = []
@@ -256,6 +305,28 @@ def test_main_smoke_test_writes_requested_diagnostics_file(monkeypatch, tmp_path
     desktop_launcher.main(["--smoke-test", "--write-diagnostics", str(target)])
 
     assert json.loads(target.read_text(encoding="utf-8")) == {"mode": "smoke-test"}
+
+
+def test_main_workflow_smoke_test_writes_requested_diagnostics_file(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "workflow-diagnostics.json"
+    workflow_report = {"status": "completed", "cases": [{"name": "Research quickstart"}]}
+    monkeypatch.setattr(desktop_launcher, "verify_desktop_packaging_ready", lambda: None)
+    monkeypatch.setattr(
+        desktop_launcher,
+        "run_packaged_workflow_smoke_tests",
+        lambda: workflow_report,
+    )
+    monkeypatch.setattr(desktop_launcher, "build_startup_diagnostics", lambda: {"mode": "workflow-smoke"})
+
+    desktop_launcher.main(["--workflow-smoke-test", "--write-diagnostics", str(target)])
+
+    assert json.loads(target.read_text(encoding="utf-8")) == {
+        "mode": "workflow-smoke",
+        "workflow_smoke_test": workflow_report,
+    }
 
 
 def test_main_persists_failure_diagnostics_for_frozen_bundle(monkeypatch, tmp_path: Path) -> None:
@@ -298,4 +369,34 @@ def test_main_smoke_test_skips_ui_launch(monkeypatch) -> None:
     desktop_launcher.main(["--smoke-test"])
 
     assert verify_calls == ["verified"]
+    assert launch_calls == []
+
+
+def test_main_workflow_smoke_test_skips_ui_launch(monkeypatch) -> None:
+    verify_calls: list[str] = []
+    workflow_calls: list[str] = []
+    launch_calls: list[str] = []
+
+    def _fake_verify() -> None:
+        verify_calls.append("verified")
+
+    def _fake_workflow_smoke() -> dict[str, object]:
+        workflow_calls.append("workflow")
+        return {"status": "completed"}
+
+    def _fake_launch(*args, **kwargs) -> None:
+        launch_calls.append("launched")
+
+    monkeypatch.setattr(desktop_launcher, "verify_desktop_packaging_ready", _fake_verify)
+    monkeypatch.setattr(
+        desktop_launcher,
+        "run_packaged_workflow_smoke_tests",
+        _fake_workflow_smoke,
+    )
+    monkeypatch.setattr(desktop_launcher, "launch_desktop_ui", _fake_launch)
+
+    desktop_launcher.main(["--workflow-smoke-test"])
+
+    assert verify_calls == ["verified"]
+    assert workflow_calls == ["workflow"]
     assert launch_calls == []

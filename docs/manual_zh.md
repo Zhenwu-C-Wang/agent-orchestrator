@@ -392,6 +392,7 @@ bash scripts/validate_macos_dmg.sh
 - 已能本地 build `.app`
 - 已能本地 build `.dmg`
 - 已能自动做 `.app` 和 `.dmg` 结构验证
+- 已能通过 `agent-orchestrator-ui --workflow-smoke-test` 跑通内置 fake 首跑路径，验证打包资源、样例数据和审计落盘
 - 还没有做第二台机器验证
 - 还没有完成签名、公证、DMG 或最终分发体验
 

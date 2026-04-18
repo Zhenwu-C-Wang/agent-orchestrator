@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import importlib
 import importlib.util
 import json
@@ -38,8 +39,34 @@ REQUIRED_APP_MODULES = (
 )
 
 
+@dataclass(frozen=True)
+class WorkflowSmokeTestCase:
+    name: str
+    question: str
+    context_filenames: tuple[str, ...]
+    expected_workflow: str
+    expected_tool_names: tuple[str, ...] = ()
+
+
+WORKFLOW_SMOKE_TEST_CASES = (
+    WorkflowSmokeTestCase(
+        name="Research quickstart",
+        question="How should I bootstrap a supervisor-worker agent system?",
+        context_filenames=(),
+        expected_workflow="research_then_write",
+    ),
+    WorkflowSmokeTestCase(
+        name="CSV analysis quickstart",
+        question="Summarize the most important changes in this data.",
+        context_filenames=("quarterly_metrics.csv",),
+        expected_workflow="analysis_then_write",
+        expected_tool_names=("local_file_context", "csv_analysis", "data_computation"),
+    ),
+)
+
+
 def get_resource_root() -> Path:
-    return resolve_resource_root(anchor_file=__file__)
+    return resolve_resource_root()
 
 
 APP_PATH = get_resource_root() / "app.py"
@@ -78,6 +105,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--smoke-test",
         action="store_true",
         help="Verify packaged UI dependencies and required app modules, then exit.",
+    )
+    parser.add_argument(
+        "--workflow-smoke-test",
+        action="store_true",
+        help=(
+            "Run bundled fake-runner starter workflows so packaged-app first-run "
+            "behavior can be validated without a repo checkout."
+        ),
     )
     parser.add_argument(
         "--diagnose-startup",
@@ -174,6 +209,19 @@ def _load_streamlit_bootstrap() -> Any:
     return bootstrap
 
 
+def _load_supervisor_builder() -> Callable[..., Any]:
+    try:
+        from orchestrator.bootstrap import build_supervisor
+    except ModuleNotFoundError as exc:  # pragma: no cover - dependency failure path
+        raise SystemExit(_format_missing_dependency_message(exc)) from exc
+    except Exception as exc:  # pragma: no cover - dependency failure path
+        raise SystemExit(
+            f"{APP_DISPLAY_NAME} could not initialize the packaged workflow smoke test: "
+            f"{type(exc).__name__}: {exc}"
+        ) from exc
+    return build_supervisor
+
+
 def _verify_required_app_modules(
     module_loader: Callable[[str], object] = importlib.import_module,
 ) -> None:
@@ -198,7 +246,7 @@ def _verify_required_app_modules(
 def _verify_required_ui_resources(
     resources: tuple[tuple[str, Path], ...] | None = None,
 ) -> None:
-    required_resources = resources or required_ui_resources(anchor_file=__file__)
+    required_resources = resources or required_ui_resources()
     missing_resources = [
         relative_path for relative_path, resource_path in required_resources if not resource_path.exists()
     ]
@@ -220,6 +268,118 @@ def verify_desktop_packaging_ready(
         raise SystemExit(f"{APP_DISPLAY_NAME} could not find the packaged UI script at {APP_PATH}.")
     _verify_required_app_modules(module_loader=module_loader)
     _verify_required_ui_resources(resources=resources)
+
+
+def _resolve_workflow_smoke_context_files(case: WorkflowSmokeTestCase) -> list[str]:
+    from orchestrator.resource_paths import sample_data_path
+
+    return [str(sample_data_path(filename)) for filename in case.context_filenames]
+
+
+def _summarize_workflow_smoke_case(case: WorkflowSmokeTestCase, result: Any) -> dict[str, object]:
+    workflow_name = result.workflow_plan.workflow_name
+    tool_names = [invocation.tool_name for invocation in result.tool_invocations]
+    tool_statuses = [
+        {
+            "tool_name": invocation.tool_name,
+            "status": invocation.status,
+        }
+        for invocation in result.tool_invocations
+    ]
+    failed_tool_names = [
+        invocation.tool_name
+        for invocation in result.tool_invocations
+        if invocation.status != "completed"
+    ]
+
+    if workflow_name != case.expected_workflow:
+        raise SystemExit(
+            f"Packaged workflow smoke test `{case.name}` selected `{workflow_name}`, "
+            f"expected `{case.expected_workflow}`."
+        )
+
+    if case.expected_tool_names:
+        missing_tool_names = [
+            tool_name for tool_name in case.expected_tool_names if tool_name not in tool_names
+        ]
+        if missing_tool_names:
+            joined_missing = ", ".join(f"`{tool_name}`" for tool_name in missing_tool_names)
+            raise SystemExit(
+                f"Packaged workflow smoke test `{case.name}` did not invoke the expected tools: "
+                f"{joined_missing}."
+            )
+    elif tool_names:
+        joined_tools = ", ".join(f"`{tool_name}`" for tool_name in tool_names)
+        raise SystemExit(
+            f"Packaged workflow smoke test `{case.name}` unexpectedly invoked tools: "
+            f"{joined_tools}."
+        )
+
+    if failed_tool_names:
+        joined_failed = ", ".join(f"`{tool_name}`" for tool_name in failed_tool_names)
+        raise SystemExit(
+            f"Packaged workflow smoke test `{case.name}` recorded failed tool invocations: "
+            f"{joined_failed}."
+        )
+
+    final_answer = getattr(result.final_answer, "answer", "").strip()
+    if not final_answer:
+        raise SystemExit(
+            f"Packaged workflow smoke test `{case.name}` did not produce a final answer."
+        )
+
+    return {
+        "name": case.name,
+        "question": case.question,
+        "context_files": _resolve_workflow_smoke_context_files(case),
+        "workflow_name": workflow_name,
+        "tool_names": tool_names,
+        "tool_statuses": tool_statuses,
+        "trace_count": len(result.traces),
+    }
+
+
+def run_packaged_workflow_smoke_tests(
+    supervisor_builder: Callable[..., Any] | None = None,
+) -> dict[str, object]:
+    os.environ[UI_MODE_ENV_VAR] = UI_MODE_DESKTOP
+    runtime_paths = resolve_ui_runtime_paths(mode=UI_MODE_DESKTOP)
+    audit_dir = Path(runtime_paths.audit_dir)
+    before_records = sorted(audit_dir.glob("*.json")) if audit_dir.exists() else []
+
+    build_supervisor = supervisor_builder or _load_supervisor_builder()
+    supervisor = build_supervisor(
+        runner_name="fake",
+        audit_dir=runtime_paths.audit_dir,
+    )
+
+    case_summaries: list[dict[str, object]] = []
+    for case in WORKFLOW_SMOKE_TEST_CASES:
+        context_files = _resolve_workflow_smoke_context_files(case)
+        result = supervisor.run_with_context(case.question, context_files=context_files)
+        case_summaries.append(_summarize_workflow_smoke_case(case, result))
+
+    after_records = sorted(audit_dir.glob("*.json")) if audit_dir.exists() else []
+    new_record_count = len(after_records) - len(before_records)
+    if new_record_count < len(WORKFLOW_SMOKE_TEST_CASES):
+        raise SystemExit(
+            "Packaged workflow smoke test did not persist the expected number of audit records "
+            f"under `{runtime_paths.audit_dir}`."
+        )
+
+    return {
+        "status": "completed",
+        "runner": "fake",
+        "runtime_paths": {
+            "root_dir": runtime_paths.root_dir,
+            "audit_dir": runtime_paths.audit_dir,
+            "acceptance_dir": runtime_paths.acceptance_dir,
+            "cache_dir": runtime_paths.cache_dir,
+            "startup_diagnostics_path": runtime_paths.startup_diagnostics_path,
+        },
+        "audit_records_written": new_record_count,
+        "cases": case_summaries,
+    }
 
 
 def _describe_module_spec(module_name: str) -> dict[str, object]:
@@ -277,7 +437,7 @@ def build_startup_diagnostics() -> dict[str, object]:
                 "path": str(resource_path),
                 "exists": resource_path.exists(),
             }
-            for relative_path, resource_path in required_ui_resources(anchor_file=__file__)
+            for relative_path, resource_path in required_ui_resources()
         ],
         "module_specs": [
             _describe_module_spec("streamlit"),
@@ -285,6 +445,14 @@ def build_startup_diagnostics() -> dict[str, object]:
             _describe_module_spec("orchestrator.bootstrap"),
         ],
     }
+
+
+def build_workflow_smoke_test_diagnostics(
+    workflow_smoke_test: dict[str, object],
+) -> dict[str, object]:
+    diagnostics = build_startup_diagnostics()
+    diagnostics["workflow_smoke_test"] = workflow_smoke_test
+    return diagnostics
 
 
 def default_startup_diagnostics_path() -> Path:
@@ -382,10 +550,21 @@ def main(argv: list[str] | None = None) -> None:
                     target_path=args.write_diagnostics,
                     diagnostics=diagnostics,
                 )
-        if args.smoke_test:
+        if args.smoke_test or args.workflow_smoke_test:
             verify_desktop_packaging_ready()
+            workflow_smoke_test = None
+            if args.workflow_smoke_test:
+                workflow_smoke_test = run_packaged_workflow_smoke_tests()
             if args.write_diagnostics is not None:
-                write_startup_diagnostics(target_path=args.write_diagnostics)
+                diagnostics = (
+                    build_workflow_smoke_test_diagnostics(workflow_smoke_test)
+                    if workflow_smoke_test is not None
+                    else build_startup_diagnostics()
+                )
+                write_startup_diagnostics(
+                    target_path=args.write_diagnostics,
+                    diagnostics=diagnostics,
+                )
             return
 
         launch_desktop_ui(
