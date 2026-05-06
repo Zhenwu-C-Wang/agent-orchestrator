@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="300" viewBox="0 0 760 300">
+<rect width="100%" height="100%" fill="white" />
+<text x="24" y="30" font-size="18" font-family="Arial">Evaluation Metrics</text>
+<line x1="50" y1="240" x2="736" y2="240" stroke="#111827" />
+<rect x="70" y="96" width="42" height="144" fill="#2563eb" />
+<text x="91" y="90" text-anchor="middle" font-size="11">80%</text>
+<text x="91" y="258" text-anchor="middle" font-size="10">success</text>
+<rect x="146" y="60" width="42" height="180" fill="#dc2626" />
+<text x="167" y="54" text-anchor="middle" font-size="11">100%</text>
+<text x="167" y="258" text-anchor="middle" font-size="10">attack</text>
+<rect x="222" y="150" width="42" height="90" fill="#16a34a" />
+<text x="243" y="144" text-anchor="middle" font-size="11">50%</text>
+<text x="243" y="258" text-anchor="middle" font-size="10">block</text>
+<text x="165" y="282" text-anchor="middle" font-size="12">baseline_inline_discovery</text>
+<rect x="290" y="60" width="42" height="180" fill="#2563eb" />
+<text x="311" y="54" text-anchor="middle" font-size="11">100%</text>
+<text x="311" y="258" text-anchor="middle" font-size="10">success</text>
+<rect x="366" y="240" width="42" height="0" fill="#dc2626" />
+<text x="387" y="234" text-anchor="middle" font-size="11">0%</text>
+<text x="387" y="258" text-anchor="middle" font-size="10">attack</text>
+<rect x="442" y="60" width="42" height="180" fill="#16a34a" />
+<text x="463" y="54" text-anchor="middle" font-size="11">100%</text>
+<text x="463" y="258" text-anchor="middle" font-size="10">block</text>
+<text x="385" y="282" text-anchor="middle" font-size="12">guarded_orchestration</text>
+<rect x="510" y="60" width="42" height="180" fill="#2563eb" />
+<text x="531" y="54" text-anchor="middle" font-size="11">100%</text>
+<text x="531" y="258" text-anchor="middle" font-size="10">success</text>
+<rect x="586" y="240" width="42" height="0" fill="#dc2626" />
+<text x="607" y="234" text-anchor="middle" font-size="11">0%</text>
+<text x="607" y="258" text-anchor="middle" font-size="10">attack</text>
+<rect x="662" y="60" width="42" height="180" fill="#16a34a" />
+<text x="683" y="54" text-anchor="middle" font-size="11">100%</text>
+<text x="683" y="258" text-anchor="middle" font-size="10">block</text>
+<text x="605" y="282" text-anchor="middle" font-size="12">guarded_with_review</text>
+</svg>

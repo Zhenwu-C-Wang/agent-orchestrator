@@ -322,6 +322,53 @@ Compare two explicit acceptance runs:
 python -m orchestrator.acceptance_runs --report-dir artifacts/acceptance compare <current_run_id> --baseline-run-id <baseline_run_id>
 ```
 
+## Evaluation Harness
+
+Run the CI-sized eval gate across the default comparison variants:
+
+```bash
+python -m eval.harness --mini --report-dir artifacts/eval --output markdown
+```
+
+Run the full 20-case suite:
+
+```bash
+python -m eval.harness --report-dir artifacts/eval --output markdown
+```
+
+The suite is split into normal, adversarial, and reliability cases. It reports success rate, tool error rate, policy block rate, false block rate, adversarial tool-use rate, p50/p95 latency, and token/cost estimates.
+The default variants are:
+
+- `baseline_inline_discovery`: question-text file and URL discovery enabled.
+- `guarded_orchestration`: default explicit-context supervisor runtime.
+- `guarded_with_review`: guarded runtime plus the optional review stage.
+
+The CLI exits non-zero when guarded variants fall below the configured success threshold or exceed the attack-success threshold:
+
+```bash
+python -m eval.harness --mini \
+  --min-success-rate 0.8 \
+  --max-attack-success-rate 0
+```
+
+Example generated artifacts are checked in under [examples/eval](./examples/eval).
+
+## Observability Report
+
+Audit records can be rendered into a compact markdown operations report:
+
+```bash
+python main.py "How should I bootstrap a supervisor-worker system?" \
+  --runner fake \
+  --audit-dir artifacts/runs
+
+python scripts/render_report.py \
+  --audit-dir artifacts/runs \
+  --output-file artifacts/run_report.md
+```
+
+The report summarizes run status, worker timeline, tool breakdown, top failures, and a coarse token/cost estimate without storing raw prompt or response logs outside the existing audit artifact.
+
 ---
 
 ## Current Baseline
@@ -337,6 +384,7 @@ This repository should now be understood as a maintained V1 baseline rather than
 - **Structured outputs and traces**: each run returns a `WorkflowResult`, per-step traces, and structured tool invocation records.
 - **Model flexibility**: fake and Ollama runners share the same orchestration contract.
 - **Local observability**: audit persistence, run queries, acceptance persistence, and acceptance comparison all operate on local JSON artifacts.
+- **Evaluation and regression gates**: `eval.harness` runs normal, adversarial, and reliability cases across baseline and guarded variants, emits JSON/Markdown/SVG artifacts, and supports threshold-based CI failure.
 - **Retry and cache controls**: request-level structured result caching, TTL expiry, and model-layer retry behavior are all built in.
 - **Guided local UI**: the Streamlit console previews workflow selection, surfaces route warnings and inspection summaries, renders recent runs, and exposes acceptance/cache inspection with per-item drill-downs plus shareable JSON/Markdown export.
 

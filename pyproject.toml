@@ -34,5 +34,5 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.setuptools]
-packages = ["models", "orchestrator", "schemas", "tools", "workers"]
+packages = ["eval", "models", "orchestrator", "schemas", "tools", "workers"]
 py-modules = ["app", "desktop_launcher", "main"]
